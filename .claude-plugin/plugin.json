@@ -1,0 +1,19 @@
+{
+  "name": "sbskills",
+  "displayName": "Stepan Beseda's skills",
+  "version": "0.2.0",
+  "description": "General-purpose Agent Skills: skill management (create, publish, check) and multi-agent PR orchestration (mao).",
+  "author": {
+    "name": "Stepan Beseda",
+    "url": "https://github.com/stepanbeseda"
+  },
+  "homepage": "https://github.com/stepanbeseda/skills",
+  "repository": "https://github.com/stepanbeseda/skills",
+  "license": "MIT",
+  "agents": [
+    "./adapters/claude/agents/mao-designer.md",
+    "./adapters/claude/agents/mao-implementer.md",
+    "./adapters/claude/agents/mao-reviewer.md",
+    "./adapters/claude/agents/mao-worker.md"
+  ]
+}

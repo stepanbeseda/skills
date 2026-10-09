@@ -1,0 +1,12 @@
+{
+  "name": "stepanbeseda-skills",
+  "interface": { "displayName": "Stepan Beseda's skills" },
+  "plugins": [
+    {
+      "name": "sbskills",
+      "source": { "source": "local", "path": "./" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    }
+  ]
+}

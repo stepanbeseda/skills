@@ -1,0 +1,12 @@
+{
+  "name": "stepanbeseda-skills",
+  "description": "Stepan Beseda's public Agent Skills for Claude Code and other agents.",
+  "owner": { "name": "Stepan Beseda", "url": "https://github.com/stepanbeseda" },
+  "plugins": [
+    {
+      "name": "sbskills",
+      "source": "./",
+      "description": "General-purpose Agent Skills: skill management (create, publish, check) and multi-agent PR orchestration (mao)."
+    }
+  ]
+}
