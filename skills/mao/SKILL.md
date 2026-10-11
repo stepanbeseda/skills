@@ -211,7 +211,9 @@ confirms it in its report with `wc -l` output.
    Output `<PR>-spec-check.md`, first line
    `Verdict: CLEAN | FINDINGS (n blocking, m non-blocking)`.
    **Blocking** findings go back to the designer, who fixes the spec in
-   place (not counted as an attempt). **Non-blocking** findings do not go
+   place (not counted as an attempt). A disproved claim that a guard, check
+   or acceptance criterion depends on is blocking even when the tree
+   passes. **Non-blocking** findings do not go
    back: the implementer gets `<PR>-spec-check.md` as notes and either
    applies each one or says in its report why not.
 5. **Implementation (implementer, attempt N/3).** Gets the spec path, the

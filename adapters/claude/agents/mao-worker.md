@@ -47,8 +47,10 @@ Confirm every file you create in your report with the output of
   it. Output into `<PR>-spec-check.md`, first line
   `Verdict: CLEAN | FINDINGS (n blocking, m non-blocking)`, then each
   finding marked blocking / non-blocking: blocking = the implementer would
-  build something wrong or a prescribed test cannot pass; everything else
-  is non-blocking (it goes to the implementer as a note).
+  build something wrong, a prescribed test cannot pass, or a run disproved
+  a claim that a guard, check or acceptance criterion in the spec depends
+  on (even when the tree passes today); everything else is non-blocking
+  (it goes to the implementer as a note).
 - **Next PR number:** max number in the plan's PR table (regex from
   `project.md`) + 1; verify with `git ls-remote --heads origin '<branch
   prefix>*'` (without a remote `git branch --list`) that no branch with that

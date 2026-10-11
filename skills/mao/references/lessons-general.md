@@ -210,6 +210,14 @@ batch, backend services and web apps); project-specific lessons live in
   SDK prefixing error texts, a library's pytest path, an upstream server's
   429 shape — each was assumed in a spec and disproved by running the image
   in the spec check. The designer runs it before writing it.
+- **A disproved claim filed as a note.** The spec check ran a linter and
+  showed that the spec's claim "a missing path always fails" was false
+  under the chosen rule set, but filed it non-blocking because the tree
+  passed. The implementer could not fix it without a design decision, the
+  reviewer raised it as a spec error, and it cost a fix commit plus a delta
+  review after approval. When a run disproves a claim that a guard, check
+  or acceptance criterion depends on, the finding is blocking and goes back
+  to the designer before implementation.
 
 ## Error shapes in code and docs
 
