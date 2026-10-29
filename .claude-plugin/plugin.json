@@ -1,7 +1,7 @@
 {
   "name": "sbskills",
   "displayName": "Stepan Beseda's skills",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "General-purpose Agent Skills: skill management (create, publish, check) and multi-agent PR orchestration (mao).",
   "author": {
     "name": "Stepan Beseda",

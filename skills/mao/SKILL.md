@@ -84,7 +84,33 @@ words, e.g. `$mao PR-07` or "run mao PR-07".)
 
 **Tier** = model choice, not a vendor: *strong* is the best reasoning model
 you have, at high reasoning effort; *fast* is a capable, cheaper coding
-model at high effort. The role instructions are in `roles/<role>.md`.
+model at high effort; *light* is the cheapest model that still writes
+correct prose from given sources. The role instructions are in
+`roles/<role>.md`.
+
+### Model and effort per task
+
+The role agent's default tier fits its main task. For the tasks below, pass
+the tier and effort explicitly when you **start** an agent (in Claude Code:
+the `model` and `effort` parameters; strong = `opus`, fast = `sonnet`,
+light = `haiku`). A resumed agent keeps its model, so a follow-up round that
+resumes an agent stays on that agent's tier — resuming is still cheaper than
+a new agent that has to read everything again.
+
+| Task | Tier, effort | Note |
+|---|---|---|
+| designer: inventory, questions, brief, spec | strong, high | the decisions everything else rests on |
+| designer: spec fix after the spec check, addendum | resume the designer | not a new agent |
+| implementer: attempt N | fast, high | |
+| implementer: follow-up after approval, conflict resolution | resume the implementer | |
+| reviewer: round 1 and rounds after `CHANGES` | strong, high | |
+| reviewer: delta review (6b) of a small diff (≤ ~100 changed lines, no new design) | fast, high, **new** agent | gets the diff, the last review and the impl report |
+| reviewer: delta review of a larger diff | resume the round-1 reviewer | |
+| worker: spec check and targeted re-check | fast, high | the cheapest place to catch a spec error |
+| worker: PR body | light, medium | you check names, pronouns and counts before opening the PR |
+| worker: docs PR after merge (Delivered blocks, lessons) | light, high | the check still runs on it |
+| worker: CI output, plan edits, other copying | light, medium | |
+| research outside the plan (prices, vendors) | fast, high | |
 
 ### Running roles
 
@@ -215,7 +241,10 @@ confirms it in its report with `wc -l` output.
    or acceptance criterion depends on is blocking even when the tree
    passes. **Non-blocking** findings do not go
    back: the implementer gets `<PR>-spec-check.md` as notes and either
-   applies each one or says in its report why not.
+   applies each one or says in its report why not. When the designer's fix
+   redesigns something (a new mechanism, not a corrected name or count),
+   the same worker re-checks **only the changed parts** and appends a
+   re-check section; never a second full spec check.
 5. **Implementation (implementer, attempt N/3).** Gets the spec path, the
    spec-check path, the branch, the attempt number, and paths to earlier
    `<PR>-impl-*.md`, `<PR>-preview-*.md` and `<PR>-review-*.md`. Report into
@@ -239,12 +268,23 @@ confirms it in its report with `wc -l` output.
    `CHANGES` → implementer, next round. `APPROVED` → delivery (with a
    preview, repeat 5b once after the last fix). Every review ends with a
    `## PR body` section (3–6 lines) that the worker copies.
+   **Non-blocking findings after `APPROVED`.** Open a follow-up round only
+   for (a) a security or data-protection issue, or (b) product behaviour
+   that no test catches (a surviving non-equivalent mutant of product code).
+   Put every chosen item into **one** follow-up. Everything else — wording,
+   docs, comments, log polish, a test for a branch the code already gets
+   right by construction — goes into the batch file as a note for the next
+   PR that touches those files, and into the Delivered block. Each extra
+   round costs a check run and a delta review.
    **6b. Delta review.** Any change to the branch **after** `APPROVED` other
    than a tree-identical rebase — conflict resolution, a fix of a
    non-blocking finding, an addendum applied after a rebase, a renumbered
    migration — gets a delta review: the reviewer reads
    `git diff <approved-commit>..HEAD` plus the conflict list and writes the
-   next `<PR>-review-N.md`. A change nobody reviewed never merges. A rebase
+   next `<PR>-review-N.md`. A change nobody reviewed never merges. The
+   delta reviewer does not repeat the full check when the implementer's
+   check line names the reviewed tree (`roles/reviewer.md`, step 7); the
+   check on the final tree is then the implementer's run. A rebase
    is tree-identical when `git diff <checked-commit> HEAD` is empty; then
    the earlier check and review still hold — record the comparison in the
    journal.

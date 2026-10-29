@@ -55,8 +55,13 @@ directory.
    `git diff <approved-commit>..HEAD` plus the conflict list. Check that
    every resolution keeps both sides (nothing of the base lost, nothing of
    the PR lost), renumbered migrations and their downgrade recipes, the
-   "after the rebase" section if applied, and run the check on the final
-   tree. No full checklist; new findings are marked **new**.
+   "after the rebase" section if applied. Do not re-run the full check when
+   the implementer's report quotes `CHECK OK tree=<X>` and `<X>` equals
+   `git rev-parse HEAD^{tree}` of the commit you review: verify that
+   equality and write it down, then run the tests of the changed places and
+   the mutants that the change is meant to kill. No hash, a different hash
+   or a report without the check line → run the check yourself. No full
+   checklist; new findings are marked **new**.
 8. When a finding is a **spec error** (the spec prescribed it wrongly), mark
    it as such explicitly — the orchestrator then escalates to the designer,
    not to the implementer.

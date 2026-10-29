@@ -141,8 +141,12 @@ host" with a defensive design. Migration SQL and recipes you prescribe are
 run on scratch data before they go into the spec. Prototypes go into
 `<ROOT>/.mao/log/<PR>-proto/` and the spec names them.
 
-**Size and anchors.** Keep the body of the spec around 500 lines; exact
-texts, long test tables and SQL go into an appendix. Anchor edits with a
+**Size and anchors.** Keep the body of the spec around 500 lines and never
+above 600; exact texts, long test tables and SQL go into an appendix that is
+read on demand. A body that needs more than 600 lines is a PR that should be
+split: propose the split line (keeping the acceptance criteria) instead of
+growing the spec. A spec fix after the spec check replaces text rather than
+adding to it. Anchor edits with a
 `grep` pattern that is unique in the file, not with line numbers; quote a
 phrase only within one line (a wrapped phrase defeats greps). Every spec
 lists the mutations the implementer must turn red.
