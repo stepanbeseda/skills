@@ -54,7 +54,10 @@ unless `project.md` says otherwise.
 5. **Self-review:** read `git diff origin/<base>...HEAD` as someone else's
    code. Go through the acceptance criteria one by one and write for each
    what satisfies it. Mutation: disable the key feature, the test must go
-   red. Go through the **whole** `checklist.md` and write `ok` / `n/a` /
+   red. Run the spec's mutant list from **one** script: for each mutant
+   apply the patch, run only its killing test with output to a log,
+   record red/green, restore the file (`git checkout -- <file>`); read the
+   summary, not the logs. Do not spend a tool call per mutant. Go through the **whole** `checklist.md` and write `ok` / `n/a` /
    what you fixed for every item. What you cannot satisfy offline, mark
    "requires preview" (browser behaviour) or "requires test host" and
    describe the exact manual step.
@@ -70,6 +73,8 @@ unless `project.md` says otherwise.
 Your context is re-read at every step, so a long attempt gets more
 expensive with each step. After about 70 tool calls, stop at the next
 step of the spec's "Order of work" where the tests are green and committed.
+At about 90 tool calls stop anyway, even in the middle of a step: commit
+what you have as `wip: <step>` and write in the progress file what is red.
 Write `<ROOT>/.mao/log/<PR>-impl-N-progress.md`: the branch and the last
 commit, which steps of the order of work are done, the next step, decisions
 you made, what you found out about the repo that the next part needs (with
@@ -102,7 +107,7 @@ Branch + last commit:
 Acceptance criteria: criterion → met / offline / requires preview / requires host / not met
 Checklist: item → ok / n/a / fixed
 Check: (last ~10 lines)
-Decisions outside the spec:
+Decisions outside the spec: (each with the numbers behind it; the reviewer judges every one)
 Blockers:
 ```
 

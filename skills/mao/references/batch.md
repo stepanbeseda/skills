@@ -33,7 +33,9 @@ information goes through the batch file.
      will add one (the designer confirms in its inventory whether its PR
      needs one; the number on the branch is the next after `<base>`, and
      each later PR renumbers on rebase — keep the migration a self-contained
-     block so that is mechanical);
+     block so that is mechanical); put the reserved number into the
+     designer's prompt, and reserve other shared sequences the same way
+     (ports, error-code ranges, fixture ids) when two PRs in flight add one;
    - resource rules copied from `project.md` "Parallel runs" with the
      PR-specific values (image tags, e2e project names);
    - owner decisions from step 3;

@@ -35,7 +35,10 @@ directory.
    verification; a cached test stage without a count is not your run. Run every new
    command or recipe. Mutation: the implementer already ran the spec's
    mutants; you run **3–5** of your own choice, aimed at where you suspect
-   a test is weak (a guard, a boundary, an error path), not the whole list.
+   a test is weak (a guard, a boundary, an error path), not the whole list
+   (2–3 on the light track). Judge every item of the implementer's
+   "Decisions outside the spec" and the spec check's "Not checked" list
+   explicitly: accepted, or a finding.
 3. Go through **every** acceptance criterion in the spec and mark it: met /
    met offline only / not met / cannot judge. For a PR whose plan chapter
    was created on this branch, also verify that `**Done when:**` in the

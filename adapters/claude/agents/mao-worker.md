@@ -57,7 +57,13 @@ Confirm every file you create in your report with the output of
   build something wrong, a prescribed test cannot pass, or a run disproved
   a claim that a guard, check or acceptance criterion in the spec depends
   on (even when the tree passes today); everything else is non-blocking
-  (it goes to the implementer as a note). A **targeted re-check** checks
+  (it goes to the implementer as a note).
+  Budget: about 60 tool calls. Spend them in this order: repo facts by
+  `grep`/`ls` (paths, identifiers, import and architecture rules,
+  migration numbers, ports, env variables), then executable claims
+  without a recorded run, guards and acceptance criteria first. When the
+  budget runs out, list the claims you did not check under
+  `## Not checked`. A **targeted re-check** checks
   only the sections the orchestrator lists and appends a re-check section
   to the same file.
 - **Next PR number:** max number in the plan's PR table (regex from

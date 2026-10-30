@@ -3,6 +3,39 @@
 Versions are the `sbskills` plugin versions that shipped a change to this
 skill. Measured effects come from [README.md](README.md#benchmarks).
 
+## 0.2.6 — 2026-10-30
+
+Measured on the 0.2.4 agents (README, "What 0.2.4 showed"): implementer
+parts halved, designers and spec checks became the largest agents,
+mutants cost a part per PR, and plan edits on feature branches caused
+repeated rebase conflicts.
+
+- **Light track** (SKILL.md): PRs without auth, security, migrations,
+  data deletion, infrastructure or concurrency and with about 300 changed
+  lines or fewer get a short spec (≤ 150 lines, ≤ 5 mutants), no separate
+  spec check, and a round-1 review at medium effort. The designer proposes
+  `Track: light | full` in the inventory.
+- **`Risk: high`**: the designer marks PRs with concurrency, offline sync,
+  security or tenant guards, data deletion or restore, or money; their
+  implementer runs on the strong tier.
+- **Designers work in parts** (`Verdict: CONTINUE`,
+  `<PR>-design-progress.md`) after about 90 tool calls; the spec phase
+  reads the inventory file instead of exploring again.
+- **Implementer parts** keep the ~70-call soft limit and get a hard stop
+  at about 90 (`wip:` commit, red tests named in the progress file).
+- **Spec-check budget** of about 60 tool calls: repo facts first, then
+  executable claims without a recorded run; the rest is listed as
+  "Not checked" and the reviewer judges it.
+- **Mutants**: at most ~12 (5 on the light track), each given as a patch
+  or `sed` line with its killing test, run by the implementer from one
+  loop script.
+- **Plan edits go to the base branch at once** with `--merge` (a small
+  docs PR), so feature branches do not carry them into rebases.
+- Batch: the reserved migration number goes into the designer's prompt;
+  other shared sequences (ports, error-code ranges) are reserved the same
+  way.
+- Reviewers judge every "Decision outside the spec" explicitly.
+
 ## 0.2.5 — 2026-10-30
 
 - Documentation only: this changelog and a README with the benchmarks of

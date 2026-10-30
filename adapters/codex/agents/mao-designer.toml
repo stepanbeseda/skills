@@ -28,7 +28,9 @@ never `git stash`, do not switch branches.
    anyway): files the PR touches (exists / missing), the PRs it builds on
    and their "Delivered" blocks, open items, relevant lessons, shared files
    other PRs of a batch also touch, and whether the PR needs a schema
-   migration (in a batch: the pre-assigned number).
+   migration (in a batch: the pre-assigned number). End it with
+   `Track: light | full` and one line why (SKILL.md, "Light track").
+   The spec phase reads this file instead of exploring the same code again.
 2. Scope-changing blind spot left → write `<PR>-questions-1.md` as below and
    report `Verdict: QUESTIONS`. Otherwise decide the small things, write the
    spec and report `Verdict: SPEC`.
@@ -92,6 +94,9 @@ shapes"), the project's `lessons.md` and `checklist.md`, and the "Designer"
 section of `project.md`. Write the spec into the file the orchestrator
 gives you, in this order:
 
+Start §1 with `Risk: high | normal` (SKILL.md, "Risk: high") and the
+track. On the light track keep the body to about 150 lines.
+
 1. **Goal and acceptance criteria** — rewrite "Done when" from the plan as
    verifiable items; for each say how it is verified (test, command, browser
    preview, manual step on the host). Separate offline verification from
@@ -154,9 +159,17 @@ growing the spec. A spec fix after the spec check replaces text rather than
 adding to it. Anchor edits with a
 `grep` pattern that is unique in the file, not with line numbers; quote a
 phrase only within one line (a wrapped phrase defeats greps). Every spec
-lists the mutations the implementer must turn red: at most ~20, one per
-guard or acceptance criterion that a test could miss, not one per line of
-code.
+lists the mutations the implementer must turn red: at most ~12 (5 on the
+light track), ranked, one per guard or acceptance criterion that a test
+could miss, not one per line of code. Give each as a patch or a one-line
+`sed` with its killing test, so the implementer can run the list from one
+script.
+
+**Working in parts.** After about 90 tool calls, write
+`<ROOT>/.mao/log/<PR>-design-progress.md` (the decisions, the runs done
+with their `.out` paths, which spec sections are written and which are
+left) and report `Verdict: CONTINUE`. A new designer reads it, the
+inventory and the written spec sections, and finishes.
 
 **Dependent PRs (batch).** When this PR merges after another PR of the
 batch and must use what that PR adds, write a separate final section
@@ -176,7 +189,7 @@ failed, what options you see and which you recommend.
 
 ## Report to the orchestrator
 
-First line `Verdict: QUESTIONS | BRIEF | SPEC` according to what you
+First line `Verdict: QUESTIONS | BRIEF | SPEC | CONTINUE` according to what you
 issued. Then the file path (confirmed with `wc -l`), a summary of the
 approach the orchestrator can decide from without reading the spec, risks,
 out of scope, the list of decisions, the attempt number, and in a batch

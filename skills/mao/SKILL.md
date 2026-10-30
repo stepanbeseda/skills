@@ -106,10 +106,10 @@ agent that reads 40k.
 |---|---|---|
 | designer: inventory, questions, brief, spec | strong, high | the decisions everything else rests on |
 | designer: spec fix after the spec check, addendum | resume while small, else new (strong, high) | gets the spec and the spec check |
-| implementer: attempt N | fast, high | |
+| implementer: attempt N | fast, high; **strong, high** when the spec says `Risk: high` | cache reads cost the same on both tiers; output costs about twice |
 | implementer: next part of an attempt (`Verdict: CONTINUE`) | fast, high, **new** agent | gets the progress file |
 | implementer: round after `CHANGES`, follow-up, conflict resolution | new (fast, high) unless the context is small | gets the review or the conflict list and the last impl report |
-| reviewer: round 1 and rounds after `CHANGES` | strong, high | resume for round 2+ only while small |
+| reviewer: round 1 and rounds after `CHANGES` | strong, high (light track: strong, medium) | resume for round 2+ only while small |
 | reviewer: delta review (6b) of a small diff (≤ ~100 changed lines, no new design) | fast, high, **new** agent | gets the diff, the last review and the impl report |
 | reviewer: delta review of a larger diff | strong, high; resume the round-1 reviewer only while small | |
 | worker: spec check | fast, high | the cheapest place to catch a spec error |
@@ -137,7 +137,27 @@ rules keep that down:
   sections its next steps name in the order of work
   (`roles/implementer.md`, "Working in parts"). A part is not an attempt.
   A continuation reads no lessons and no checklist; the last part reads
-  the checklist for its self-review.
+  the checklist for its self-review. About 90 tool calls is the hard
+  stop, even in the middle of a step: commit the work as `wip:` and say
+  in the progress file what is red. A measured part that ignored the
+  soft limit ran 131 calls and cost as much as two parts.
+- **Designers work in parts too.** The spec phase re-reads
+  `<PR>-inventory.md` instead of exploring again. After about 90 tool
+  calls the designer writes `<PR>-design-progress.md` (decisions, runs
+  done with their `.out` paths, spec sections written, what is left) and
+  reports `Verdict: CONTINUE`; a new designer finishes the spec. The
+  largest measured designers ran 130–150 calls at up to 360k context.
+- **Spec checks have a budget** of about 60 tool calls, spent in this
+  order: repo facts by `grep`/`ls` (paths, identifiers, import and
+  architecture rules, migration numbers, ports, env variables), then
+  executable claims without a recorded run, guards and acceptance
+  criteria first. Claims left when the budget runs out are listed as
+  "not checked" for the implementer and the reviewer.
+- **Mutants run from one script.** The implementer writes each mutant as
+  a small patch (or `sed` line) and runs the list with one loop script
+  that applies a mutant, runs its killing test, records red/green to one
+  log and restores the file. One tool call per mutant was a whole
+  implementer part in measured runs.
 - **Read by range.** Agents find code with `grep -n` and read it with
   `sed -n a,bp` (or a ranged read), not whole files, and do not read a file
   twice in one context. Reviewers read the diff file by file, starting
@@ -150,6 +170,36 @@ rules keep that down:
   checks that run the check, designers that run prototypes), unless
   "Parallel runs" in `project.md` sets another number. More only wait for
   the machine lock and make timing-sensitive tests flaky.
+
+### Light track
+
+A PR goes on the light track when the designer's inventory says
+`Track: light` with a reason and you agree: no auth, permissions or
+tenant isolation, no crypto or security guard, no schema migration, no
+data deletion or restore, no deploy, chart or infrastructure change, no
+concurrency or offline sync, about 300 changed lines of product code or
+fewer. Docs, copy, small UI screens over existing APIs and chores qualify
+typically. On the light track:
+
+- the designer writes a short spec (body ≤ 150 lines, at most 5 mutants);
+- there is no separate spec check: the implementer reports a spec error
+  as a blocker and the designer fixes it;
+- the implementer works in one part where it fits;
+- review round 1 runs on the strong tier at medium effort.
+
+Everything else (questions, the check, the review verdicts, the merge
+gate) stays the same. When a light PR turns out to touch one of the
+excluded areas, it moves to the full track at the next step.
+
+### Risk: high
+
+The designer writes `Risk: high` in §1 of the spec when the PR has
+concurrency or offline sync, a security or tenant guard, data deletion,
+restore or migration of existing data, or money. The implementer then runs
+on the strong tier. In measured runs every blocker that review found on
+such PRs (a race that loses data, a guard that fails open, a restore
+runbook that cannot run) had passed the fast implementer's green check,
+self-review and mutants.
 
 You report to the user at milestones (a merge, a question, a blocker, a
 finished batch) and do several git and journal steps per turn; every turn
@@ -263,7 +313,11 @@ only the verdict, the path, the check line and blockers.
    table row. You ask one confirmation question ("Done when" ≤ 8 items —
    agree?; it does not count as a round). The worker inserts the chapter
    into the plan, you create the branch and commit
-   `docs(plan): add PR NN — <name>`. With `--brief-only` → push, PR with the
+   `docs(plan): add PR NN — <name>`. With `--merge`, every plan edit
+   (a new chapter, a split, a renumbering) goes to `<base>` at once as its
+   own small docs PR through the usual merge gate, and the PR branch is
+   rebased onto it. Plan edits that rode on feature branches conflicted on
+   every later rebase (four rebases of one PR in a measured run). With `--brief-only` → push, PR with the
    chapter only, stop. For a `PR-NN` whose chapter already exists, 2b is
    skipped.
 3. **Design (designer, attempt N/3).** Spec into `<PR>-spec.md`; acceptance
@@ -285,7 +339,8 @@ only the verdict, the path, the check line and blockers.
    A claim the designer already backed with a recorded run (a
    `<PR>-proto/*.out` file the spec names) is checked against that file,
    not run again. The spec check runs no mutants and no full test suites;
-   those belong to the implementer and the reviewer.
+   those belong to the implementer and the reviewer. It works within the
+   budget in "Context budget" and skips on the light track.
    Output `<PR>-spec-check.md`, first line
    `Verdict: CLEAN | FINDINGS (n blocking, m non-blocking)`.
    **Blocking** findings go back to the designer, who fixes the spec in
@@ -301,8 +356,10 @@ only the verdict, the path, the check line and blockers.
    spec-check path, the branch, the attempt number, and paths to earlier
    `<PR>-impl-*.md`, `<PR>-preview-*.md` and `<PR>-review-*.md`. Report into
    `<PR>-impl-N.md`, ending with the check's summary line (see "Check
-   evidence"). `Verdict: CONTINUE` with `<PR>-impl-N-progress.md` means the
-   attempt is not finished: start a new implementer for its next part. The
+   evidence").    `Verdict: CONTINUE` with `<PR>-impl-N-progress.md` means the
+   attempt is not finished: start a new implementer for its next part
+   (a designer's `Verdict: CONTINUE` with `<PR>-design-progress.md`
+   works the same way). The
    attempt failed when the report states a blocker or the
    check is not green. A new project without a check: the first PR must
    introduce one and record it in `project.md` — the designer makes it an
