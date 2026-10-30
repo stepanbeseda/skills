@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "sbskills",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "General-purpose Agent Skills: skill management (create, publish, check) and multi-agent PR orchestration (mao)."
 }
