@@ -64,6 +64,21 @@ unless `project.md` says otherwise.
    check yet and the spec says to introduce one → introduce it and record it
    in `project.md`.
 
+## Working in parts
+
+Your context is re-read at every step, so a long attempt gets more
+expensive with each step. After about 100 tool calls, stop at the next
+step of the spec's "Order of work" where the tests are green and committed.
+Write `<ROOT>/.mao/log/<PR>-impl-N-progress.md`: the branch and the last
+commit, which steps of the order of work are done, the next step, decisions
+you made, what you found out about the repo that the next part needs (with
+paths), and the open spec-check notes. Report `Verdict: CONTINUE` and the
+file path. The orchestrator starts a new implementer for the same attempt
+with that file; it reads the progress file instead of retracing your
+steps. A part is not a failed attempt. Your prompt says when you are a
+continuation: read the progress file first, then only the spec sections
+you still need.
+
 ## When an attempt failed
 
 An attempt failed when, after reasonable effort, the check is not green,
@@ -77,7 +92,8 @@ Write it into `<ROOT>/.mao/log/<PR>-impl-N.md` (you get the path)
 and return the same to the orchestrator; confirm the file with `wc -l`.
 
 ```
-Attempt: N/3
+Verdict: DONE | CONTINUE | BLOCKED
+Attempt: N/3 (part K when continued)
 Branch + last commit:
 Acceptance criteria: criterion → met / offline / requires preview / requires host / not met
 Checklist: item → ok / n/a / fixed
@@ -93,6 +109,10 @@ Blockers:
   background job you started; nothing of yours may keep running after it.
 - Remove the scratch containers, volumes, networks, images and temp dirs you
   created (never anything you did not create).
+- Long output goes to a log file: `<command> > <log> 2>&1; tail -n 40 <log>`
+  for the check, test suites, mutation runs, builds, cluster and browser
+  logs. Read the summary line and the failures (`grep` the log), not the
+  whole run; every line you read stays in your context.
 - Shared machine resources follow "Parallel runs" in `project.md` and, in a
   batch, the batch file: the machine lock, PR-private image tags and project
   names. Never test another PR's image or a shared default tag.

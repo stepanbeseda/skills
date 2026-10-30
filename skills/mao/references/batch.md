@@ -52,13 +52,15 @@ reviewer of round 1 is told the section is deliberately not implemented.
 
 ## B2. Scheduling
 
-- Start designers for every PR in parallel (they read; cheap on CPU).
+- Start designers in parallel for the PRs that build only on merged work;
+  a PR that builds on another PR of the batch is designed when that PR is
+  approved ("Context budget" in SKILL.md: design one PR ahead).
 - **Cap** concurrent implementers / heavy checks at the "Parallel runs"
-  limit in `project.md` (default 2). When a slot frees up, start the next
+  limit in `project.md` (default 2), and all heavy agents together at three
+  (SKILL.md, "Context budget"). When a slot frees up, start the next
   PR **in merge order** — the PR that merges first must never wait for a
   build lock behind one that merges last.
-- Reviews, spec checks and PR bodies are not capped beyond the machine
-  lock.
+- PR bodies and other light work are not capped beyond the machine lock.
 - Every agent follows the machine lock and PR-private names from
   `project.md`; the check script (when the project has one) applies them.
 
@@ -71,7 +73,8 @@ Repeat for the next PR in merge order, once it is APPROVED:
    - an earlier PR of the batch was squash-merged and this branch was
      stacked on its tip → `git rebase --onto origin/<base> <that-tip>`;
    - otherwise `git rebase origin/<base>`.
-   Conflicts → resume this PR's implementer as an assigned task: resolve
+   Conflicts → this PR's implementer as an assigned task (resumed while its
+   context is small, otherwise a new one with the conflict list): resolve
    keeping all sides, renumber its migration to the pre-assigned number,
    apply the after-rebase addendum if any, run the full check. Then a delta
    review (6b). The implementer may run `git rebase --continue/--skip` in

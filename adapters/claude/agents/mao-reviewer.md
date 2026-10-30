@@ -29,7 +29,9 @@ directory.
    carefully as code. Run the check from `project.md` yourself with your
    own private tag — the implementer's claims do not count without
    verification; a cached test stage without a count is not your run. Run every new
-   command or recipe.
+   command or recipe. Mutation: the implementer already ran the spec's
+   mutants; you run **3–5** of your own choice, aimed at where you suspect
+   a test is weak (a guard, a boundary, an error path), not the whole list.
 3. Go through **every** acceptance criterion in the spec and mark it: met /
    met offline only / not met / cannot judge. For a PR whose plan chapter
    was created on this branch, also verify that `**Done when:**` in the
@@ -93,6 +95,10 @@ Not verified: (what requires browser preview, the test host or a human)
   background job you started; nothing of yours may keep running after it.
 - Remove the scratch containers, volumes, networks, images and temp dirs you
   created (never anything you did not create).
+- Long output goes to a log file: `<command> > <log> 2>&1; tail -n 40 <log>`
+  for the check, test suites, mutation runs, builds, cluster and browser
+  logs. Read the summary line and the failures (`grep` the log), not the
+  whole run; every line you read stays in your context.
 - Shared machine resources follow "Parallel runs" in `project.md` and, in a
   batch, the batch file: the machine lock, PR-private image tags and project
   names. Never test another PR's image or a shared default tag.

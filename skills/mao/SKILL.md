@@ -93,24 +93,59 @@ correct prose from given sources. The role instructions are in
 The role agent's default tier fits its main task. For the tasks below, pass
 the tier and effort explicitly when you **start** an agent (in Claude Code:
 the `model` and `effort` parameters; strong = `opus`, fast = `sonnet`,
-light = `haiku`). A resumed agent keeps its model, so a follow-up round that
-resumes an agent stays on that agent's tier — resuming is still cheaper than
-a new agent that has to read everything again.
+light = `haiku`). A resumed agent keeps its model **and its whole
+context**, and every step it takes re-reads that context. Resume an agent
+only while its context is small (about 150k tokens or less; Claude Code
+reports an agent's tokens when it finishes) or when the next round really
+needs what it learned. Otherwise start a **new** agent of the same role and
+give it file paths: the last report, the finding, the spec sections. A
+one-line fix in an agent that carries 400k tokens costs more than a fresh
+agent that reads 40k.
 
 | Task | Tier, effort | Note |
 |---|---|---|
 | designer: inventory, questions, brief, spec | strong, high | the decisions everything else rests on |
-| designer: spec fix after the spec check, addendum | resume the designer | not a new agent |
+| designer: spec fix after the spec check, addendum | resume while small, else new (strong, high) | gets the spec and the spec check |
 | implementer: attempt N | fast, high | |
-| implementer: follow-up after approval, conflict resolution | resume the implementer | |
-| reviewer: round 1 and rounds after `CHANGES` | strong, high | |
+| implementer: next part of an attempt (`Verdict: CONTINUE`) | fast, high, **new** agent | gets the progress file |
+| implementer: round after `CHANGES`, follow-up, conflict resolution | new (fast, high) unless the context is small | gets the review or the conflict list and the last impl report |
+| reviewer: round 1 and rounds after `CHANGES` | strong, high | resume for round 2+ only while small |
 | reviewer: delta review (6b) of a small diff (≤ ~100 changed lines, no new design) | fast, high, **new** agent | gets the diff, the last review and the impl report |
-| reviewer: delta review of a larger diff | resume the round-1 reviewer | |
-| worker: spec check and targeted re-check | fast, high | the cheapest place to catch a spec error |
+| reviewer: delta review of a larger diff | strong, high; resume the round-1 reviewer only while small | |
+| worker: spec check | fast, high | the cheapest place to catch a spec error |
+| worker: targeted re-check | fast, high, new unless small | gets the spec check and the list of changed sections |
 | worker: PR body | light, medium | you check names, pronouns and counts before opening the PR |
 | worker: docs PR after merge (Delivered blocks, lessons) | light, high | the check still runs on it |
 | worker: CI output, plan edits, other copying | light, medium | |
 | research outside the plan (prices, vendors) | fast, high | |
+
+### Context budget
+
+Nearly all of a run's tokens are context that agents re-read at every step:
+in measured runs, 97 % of the tokens were cache reads, and the quarter of
+agents with more than 150 steps used more than half of everything. Four
+rules keep that down:
+
+- **Long output goes to a file.** Every agent sends the check, test suites,
+  mutation runs, builds and cluster or browser logs to a log file and reads
+  only the summary line and the failures (`… > <log> 2>&1; tail -n 40
+  <log>`). Each line read stays in the context for the rest of the run.
+- **Implementers work in parts.** After about 100 tool calls, at the next
+  step of the spec's order of work with green tests, the implementer writes
+  `<PR>-impl-N-progress.md` and reports `Verdict: CONTINUE`. You start a
+  new implementer for the same attempt with that file
+  (`roles/implementer.md`, "Working in parts"). A part is not an attempt.
+- **Design one PR ahead.** Start a designer when the PR's dependencies are
+  merged or approved, not earlier. A spec written two or three merges ahead
+  gets rewritten and re-checked when those merges land.
+- **At most three heavy agents at once** (implementers, reviewers and spec
+  checks that run the check, designers that run prototypes), unless
+  "Parallel runs" in `project.md` sets another number. More only wait for
+  the machine lock and make timing-sensitive tests flaky.
+
+You report to the user at milestones (a merge, a question, a blocker, a
+finished batch) and do several git and journal steps per turn; every turn
+of yours re-reads your own context too.
 
 ### Running roles
 
@@ -133,8 +168,8 @@ A subagent cannot start subagents; you start every round. Name the agents
 not message each other — every round goes through you. A new agent has no
 context from the previous one: it gets **file paths**, not a retelling of a
 report. Resuming the same agent for the next round of the same role (spec
-fix, next implementation round, review round 2) is cheaper than a new one;
-do it when your tool allows it.
+fix, next implementation round, review round 2) saves the reading only
+while its context is small; see "Model and effort per task".
 
 Give every agent in its prompt: `<ROOT>`, the branch, `<SKILL>`, and the
 paths to the project's `project.md`, `checklist.md` and `lessons.md` (in a
@@ -165,6 +200,7 @@ confirms it in its report with `wc -l` output.
 | `<PR>-spec.md` | designer | everyone |
 | `<PR>-spec-check.md` | worker | designer (blocking), implementer (notes), orchestrator |
 | `<PR>-impl-N.md` | implementer (attempt N) | reviewer, next implementer |
+| `<PR>-impl-N-progress.md` | implementer (a part of attempt N that ends with `CONTINUE`) | the implementer of the next part |
 | `<PR>-preview-N.md` | orchestrator (browser findings) | implementer |
 | `<PR>-review-N.md` | reviewer (round N, incl. delta rounds) | implementer, designer on escalation, worker (PR body) |
 | `<PR>-pr-body.md` | worker | orchestrator (opens the PR with it) |
@@ -234,6 +270,10 @@ confirms it in its report with `wc -l` output.
    config/env variable has a default and a place of origin; every executable
    claim (migration SQL, a recipe, a library call, an error shape) is
    **run**, not read; plus the checks `project.md` lists for the worker.
+   A claim the designer already backed with a recorded run (a
+   `<PR>-proto/*.out` file the spec names) is checked against that file,
+   not run again. The spec check runs no mutants and no full test suites;
+   those belong to the implementer and the reviewer.
    Output `<PR>-spec-check.md`, first line
    `Verdict: CLEAN | FINDINGS (n blocking, m non-blocking)`.
    **Blocking** findings go back to the designer, who fixes the spec in
@@ -243,13 +283,15 @@ confirms it in its report with `wc -l` output.
    back: the implementer gets `<PR>-spec-check.md` as notes and either
    applies each one or says in its report why not. When the designer's fix
    redesigns something (a new mechanism, not a corrected name or count),
-   the same worker re-checks **only the changed parts** and appends a
-   re-check section; never a second full spec check.
+   a worker re-checks **only the changed parts** and appends a re-check
+   section; never a second full spec check.
 5. **Implementation (implementer, attempt N/3).** Gets the spec path, the
    spec-check path, the branch, the attempt number, and paths to earlier
    `<PR>-impl-*.md`, `<PR>-preview-*.md` and `<PR>-review-*.md`. Report into
    `<PR>-impl-N.md`, ending with the check's summary line (see "Check
-   evidence"). The attempt failed when the report states a blocker or the
+   evidence"). `Verdict: CONTINUE` with `<PR>-impl-N-progress.md` means the
+   attempt is not finished: start a new implementer for its next part. The
+   attempt failed when the report states a blocker or the
    check is not green. A new project without a check: the first PR must
    introduce one and record it in `project.md` — the designer makes it an
    acceptance criterion.
@@ -326,6 +368,8 @@ count is not a run: force the tests (the way is in `project.md`).
   background job the agent started.
 - Remove scratch containers, volumes, networks, images and temp dirs the
   agent created; never anything it did not create.
+- Long command output goes to a log file; the agent reads the summary and
+  the failures only ("Context budget").
 - Shared machine resources (build cache, image tags, compose project names,
   ports, databases, CPU) follow the "Parallel runs" section of `project.md`;
   in a batch the batch file adds the PR-specific values.

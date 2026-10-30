@@ -137,7 +137,12 @@ paths inside an image, return formats, status codes) is backed by a run
 offline in the project's image, or marked "unverified — requires test
 host" with a defensive design. Migration SQL and recipes you prescribe are
 run on scratch data before they go into the spec. Prototypes go into
-`<ROOT>/.mao/log/<PR>-proto/` and the spec names them.
+`<ROOT>/.mao/log/<PR>-proto/` and the spec names them. Save the output of
+each run next to it as a `.out` file (command, exit code, the lines that
+prove the claim) and name it at the claim: the spec check reads a recorded
+run instead of repeating it, so a slow run (a cluster, a browser, a full
+suite) is paid once. Send long output to the `.out` file, not to your
+context.
 
 **Size and anchors.** Keep the body of the spec around 500 lines and never
 above 600; exact texts, long test tables and SQL go into an appendix that is
@@ -147,7 +152,9 @@ growing the spec. A spec fix after the spec check replaces text rather than
 adding to it. Anchor edits with a
 `grep` pattern that is unique in the file, not with line numbers; quote a
 phrase only within one line (a wrapped phrase defeats greps). Every spec
-lists the mutations the implementer must turn red.
+lists the mutations the implementer must turn red: at most ~20, one per
+guard or acceptance criterion that a test could miss, not one per line of
+code.
 
 **Dependent PRs (batch).** When this PR merges after another PR of the
 batch and must use what that PR adds, write a separate final section
@@ -182,6 +189,10 @@ orchestrator reads the questions from the file.
   background job you started; nothing of yours may keep running after it.
 - Remove the scratch containers, volumes, networks, images and temp dirs you
   created (never anything you did not create).
+- Long output goes to a log file: `<command> > <log> 2>&1; tail -n 40 <log>`
+  for the check, test suites, mutation runs, builds, cluster and browser
+  logs. Read the summary line and the failures (`grep` the log), not the
+  whole run; every line you read stays in your context.
 - Shared machine resources follow "Parallel runs" in `project.md` and, in a
   batch, the batch file: the machine lock, PR-private image tags and project
   names. Never test another PR's image or a shared default tag.

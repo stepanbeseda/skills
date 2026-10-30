@@ -42,13 +42,22 @@ Confirm every file you create in your report with the output of
   checks in the "Worker" section of `project.md`. **Run** every executable
   claim (migration SQL on a copy of the current schema, recipes, library
   calls, error shapes) in the project's image offline instead of reading
-  it. Output into `<PR>-spec-check.md`, first line
+  it — except a claim the spec backs with a recorded designer run
+  (`<PR>-proto/*.out`): read that file and check it shows what the spec
+  says; run it again only when the file is missing, does not match the
+  claim or ran against something that has changed since. Do not run
+  mutants, full test suites or the whole check; run the smallest command
+  that proves or disproves one claim. A cluster, browser or other slow
+  environment only when no recorded run covers the claim. Output into
+  `<PR>-spec-check.md`, first line
   `Verdict: CLEAN | FINDINGS (n blocking, m non-blocking)`, then each
   finding marked blocking / non-blocking: blocking = the implementer would
   build something wrong, a prescribed test cannot pass, or a run disproved
   a claim that a guard, check or acceptance criterion in the spec depends
   on (even when the tree passes today); everything else is non-blocking
-  (it goes to the implementer as a note).
+  (it goes to the implementer as a note). A **targeted re-check** checks
+  only the sections the orchestrator lists and appends a re-check section
+  to the same file.
 - **Next PR number:** max number in the plan's PR table (regex from
   `project.md`) + 1; verify with `git ls-remote --heads origin '<branch
   prefix>*'` (without a remote `git branch --list`) that no branch with that
@@ -99,6 +108,10 @@ files created with `wc -l`, what did not work.
   background job you started; nothing of yours may keep running after it.
 - Remove the scratch containers, volumes, networks, images and temp dirs you
   created (never anything you did not create).
+- Long output goes to a log file: `<command> > <log> 2>&1; tail -n 40 <log>`
+  for the check, test suites, mutation runs, builds, cluster and browser
+  logs. Read the summary line and the failures (`grep` the log), not the
+  whole run; every line you read stays in your context.
 - Shared machine resources follow "Parallel runs" in `project.md` and, in a
   batch, the batch file: the machine lock, PR-private image tags and project
   names. Never test another PR's image or a shared default tag.
