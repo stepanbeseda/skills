@@ -22,11 +22,17 @@ directory.
 
 ## Procedure
 
-1. Read `<SKILL>/references/lessons-general.md`, the project's
+1. Round 1: read `<SKILL>/references/lessons-general.md`, the project's
    `lessons.md` and `checklist.md`, and the "Reviewer" section of
-   `project.md`.
-2. `git diff origin/<base>...HEAD` across the whole diff; read tests as
-   carefully as code. Run the check from `project.md` yourself with your
+   `project.md`. Round 2+ and delta reviews: only the earlier review and
+   the implementer's report. From the spec read §1 (acceptance criteria),
+   the designer decisions and the sections of the areas you judge, not
+   the whole spec.
+2. Start with `git diff --stat origin/<base>...HEAD`, then read the diff
+   file by file (`git diff origin/<base>...HEAD -- <file>`, more `-U`
+   context where a hunk needs it); read tests as carefully as code. Open
+   surrounding code by range (`grep -n`, `sed -n a,bp`); a whole file only
+   when it is new and short. Run the check from `project.md` yourself with your
    own private tag — the implementer's claims do not count without
    verification; a cached test stage without a count is not your run. Run every new
    command or recipe. Mutation: the implementer already ran the spec's
@@ -99,6 +105,15 @@ Not verified: (what requires browser preview, the test host or a human)
   for the check, test suites, mutation runs, builds, cluster and browser
   logs. Read the summary line and the failures (`grep` the log), not the
   whole run; every line you read stays in your context.
+- Read code by range: find it with `grep -n`, read it with `sed -n a,bp`
+  (or a ranged read); a whole file only when it is short. Do not read the
+  same file twice; note what you need from it.
+- Never wrap the check (or another long run) in `timeout`; a run you cut
+  off is lost and held the machine lock meanwhile. Use your tool's longest
+  foreground wait or run it in the background and wait for the
+  notification.
+- Your final message is at most ten lines: verdict, report path, check
+  line, blockers. The report file holds everything else.
 - Shared machine resources follow "Parallel runs" in `project.md` and, in a
   batch, the batch file: the machine lock, PR-private image tags and project
   names. Never test another PR's image or a shared default tag.

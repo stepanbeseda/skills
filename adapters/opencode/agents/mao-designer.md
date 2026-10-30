@@ -126,7 +126,9 @@ gives you, in this order:
    `<PR>-questions-2.md` and the report starts with `Verdict: QUESTIONS`;
    after round 2 decide yourself and write why here.
 10. **Order of work** — steps, green tests after each; where the dividing
-    line is if the PR had to be split.
+    line is if the PR had to be split. Each step names the spec sections
+    and appendices it needs (by heading), so an implementer that continues
+    an attempt in a new context reads only those.
 
 Before writing, read the headers of the affected modules — they often say
 "why" and which earlier attempt failed.
@@ -193,6 +195,15 @@ orchestrator reads the questions from the file.
   for the check, test suites, mutation runs, builds, cluster and browser
   logs. Read the summary line and the failures (`grep` the log), not the
   whole run; every line you read stays in your context.
+- Read code by range: find it with `grep -n`, read it with `sed -n a,bp`
+  (or a ranged read); a whole file only when it is short. Do not read the
+  same file twice; note what you need from it.
+- Never wrap the check (or another long run) in `timeout`; a run you cut
+  off is lost and held the machine lock meanwhile. Use your tool's longest
+  foreground wait or run it in the background and wait for the
+  notification.
+- Your final message is at most ten lines: verdict, report path, check
+  line, blockers. The report file holds everything else.
 - Shared machine resources follow "Parallel runs" in `project.md` and, in a
   batch, the batch file: the machine lock, PR-private image tags and project
   names. Never test another PR's image or a shared default tag.

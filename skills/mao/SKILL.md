@@ -123,18 +123,26 @@ agent that reads 40k.
 
 Nearly all of a run's tokens are context that agents re-read at every step:
 in measured runs, 97 % of the tokens were cache reads, and the quarter of
-agents with more than 150 steps used more than half of everything. Four
+agents with more than 150 steps used more than half of everything. These
 rules keep that down:
 
 - **Long output goes to a file.** Every agent sends the check, test suites,
   mutation runs, builds and cluster or browser logs to a log file and reads
   only the summary line and the failures (`… > <log> 2>&1; tail -n 40
   <log>`). Each line read stays in the context for the rest of the run.
-- **Implementers work in parts.** After about 100 tool calls, at the next
+- **Implementers work in parts.** After about 70 tool calls, at the next
   step of the spec's order of work with green tests, the implementer writes
   `<PR>-impl-N-progress.md` and reports `Verdict: CONTINUE`. You start a
-  new implementer for the same attempt with that file
+  new implementer for the same attempt with that file and the spec
+  sections its next steps name in the order of work
   (`roles/implementer.md`, "Working in parts"). A part is not an attempt.
+  A continuation reads no lessons and no checklist; the last part reads
+  the checklist for its self-review.
+- **Read by range.** Agents find code with `grep -n` and read it with
+  `sed -n a,bp` (or a ranged read), not whole files, and do not read a file
+  twice in one context. Reviewers read the diff file by file, starting
+  from `git diff --stat`. Whole files and whole `cat`s were the largest
+  single item in measured implementer contexts.
 - **Design one PR ahead.** Start a designer when the PR's dependencies are
   merged or approved, not earlier. A spec written two or three merges ahead
   gets rewritten and re-checked when those merges land.
@@ -145,7 +153,10 @@ rules keep that down:
 
 You report to the user at milestones (a merge, a question, a blocker, a
 finished batch) and do several git and journal steps per turn; every turn
-of yours re-reads your own context too.
+of yours re-reads your own context too. Ask every agent for a final
+message of at most ten lines (verdict, report path, check line, blockers):
+the report file holds the rest, and every line of a hand-back stays in
+your context for the rest of the run.
 
 ### Running roles
 
@@ -186,7 +197,8 @@ The report **file** is the source of truth, not the agent's final message.
 A hand-back can be lost or arrive late; when an agent finishes without a
 readable report, check the file (`wc -l`, first line) and the branch
 (`git log`) before you start anything new. An agent that creates a file
-confirms it in its report with `wc -l` output.
+confirms it in its report with `wc -l` output. The final message repeats
+only the verdict, the path, the check line and blockers.
 
 ## Run files (`<ROOT>/.mao/log/`)
 
@@ -370,6 +382,12 @@ count is not a run: force the tests (the way is in `project.md`).
   agent created; never anything it did not create.
 - Long command output goes to a log file; the agent reads the summary and
   the failures only ("Context budget").
+- Code is read by range, not by whole file ("Context budget").
+- The check is never wrapped in `timeout`: a run cut off by the agent's
+  own timeout is thrown away and repeated, and it held the machine lock
+  the whole time. Long runs go to the background and the agent waits for
+  the notification.
+- The final message is at most ten lines; the report file holds the rest.
 - Shared machine resources (build cache, image tags, compose project names,
   ports, databases, CPU) follow the "Parallel runs" section of `project.md`;
   in a batch the batch file adds the PR-specific values.
