@@ -3,6 +3,65 @@
 Versions are the `sbskills` plugin versions that shipped a change to this
 skill. Measured effects come from [README.md](README.md#benchmarks).
 
+## 0.2.7 — 2026-11-02
+
+Measured on the 0.2.6 run (README, "What 0.2.6 showed"): implementation
+37.5 % and design 26.5 % of subagent cost; cache re-writes after idle
+waits on the check 8.7 % of the window; strong-tier work that the model
+table puts on the fast tier 12 %; 10 of 11 designers over the ~90-call
+limit; 7 of 7 round-1 `CHANGES` after an unpinned guard; the same check
+run three or four times per tree; a fixed ~31k-token base context per
+subagent step (13 %).
+
+- **Gate runner** (`references/gates.md`): the implementer commits and
+  reports `Verdict: GATE` with `Check: pending tree=<hash>`; a new
+  fast-tier worker checks the tree, runs exactly the project's check into
+  `<PR>-check-<n>.log`, reruns once only for known flakes, and appends the
+  summary line to the impl report. Red → a new implementer part with the
+  log path. Short checks stay with the implementer.
+- **Model table followed and corrected**: fix rounds, rebases, conflict
+  tasks and chores run on the fast tier even on `Risk: high` PRs (strong
+  only for a race or a guard design error). The claim that cache reads cost
+  the same on both tiers is removed: the strong tier costs more for every
+  token class.
+- **Designer split at the inventory**: the first designer writes
+  `<PR>-inventory.md` by about call 50 and returns `QUESTIONS` or the new
+  `INVENTORY` verdict; a new designer writes the spec. Light-track
+  exception for small inventories.
+- **Hard stops enforced**: the prompt's first line states the budget,
+  progress files stay current after every step, every call counts, and the
+  orchestrator records each agent's tool-call count.
+- **CI is the independent run**: with CI running the check, reviewers do
+  not repeat it and green CI on the PR head is the final-tree check.
+- **Gate carry-over**: the final tree needs one fresh full check plus every
+  CI job; extra gates (including host-only ones) carry over after a
+  conflict-free rebase when their input paths are unchanged. No gate after
+  an intermediate rebase; stalled branches leave the merge train.
+- **Per-PR file names** for every run file, logs included.
+- **"Agent environment"** section in the project template, copied into
+  every prompt (tool paths, build outputs to clean before a check).
+- **Reviewer mutants in a `git archive` copy**, never in a worktree a
+  preview serves from; no install through a link into the worktree.
+- **Prompts**: one template (`references/prompt-template.md`), agents named
+  `PR-NN <phase>`, no role-file re-read for installed role agents (tools
+  without subagents still read it).
+- **Sectioned specs**: appendices in `<PR>-spec-<X>-<name>.md`; each step
+  of the order of work names what it reads.
+- **No follow-up round for wording** after `APPROVED`, however cheap.
+- SKILL.md under 500 lines: the context budget detail moved to
+  `references/context-budget.md`, the blind-spot list to the designer role.
+- **Opt-in experiments** (`references/experiments.md`): guard mutants per
+  operand with no "equivalent" mutant without a ruling (E1), lean agent
+  definitions through the new Claude-only role fields `claude-tools`,
+  `claude-disallowed-tools`, `claude-max-turns` (E2; no role sets them),
+  per-step tiers on `Risk: high` PRs (E3), earlier orchestrator compaction
+  (E4), fast-tier inventory (E5).
+- **Cost helper** `scripts/agent-cost.py`: tokens, estimated cost, tool
+  calls, context, wall and idle time per agent, role, model, phase or PR
+  from Claude Code transcripts, with an editable price table.
+
+Measured: not yet (no finished agent ran on 0.2.7 definitions).
+
 ## 0.2.6 — 2026-10-30
 
 Measured on the 0.2.4 agents (README, "What 0.2.4 showed"): implementer

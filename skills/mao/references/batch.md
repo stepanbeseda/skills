@@ -37,7 +37,9 @@ information goes through the batch file.
      designer's prompt, and reserve other shared sequences the same way
      (ports, error-code ranges, fixture ids) when two PRs in flight add one;
    - resource rules copied from `project.md` "Parallel runs" with the
-     PR-specific values (image tags, e2e project names);
+     PR-specific values (image tags, e2e project names), and the run-wide
+     rules every prompt would otherwise repeat (lock slots, flakes seen in
+     this batch, part limits, experiments switched on);
    - owner decisions from step 3;
    - a "Cross-PR notes" list you append to as designs come in (e.g. "PR 13 adds `matching.suggest()`; PR 09 feeds its data into it
      after its rebase").
@@ -75,22 +77,32 @@ Repeat for the next PR in merge order, once it is APPROVED:
    - an earlier PR of the batch was squash-merged and this branch was
      stacked on its tip → `git rebase --onto origin/<base> <that-tip>`;
    - otherwise `git rebase origin/<base>`.
-   Conflicts → this PR's implementer as an assigned task (resumed while its
-   context is small, otherwise a new one with the conflict list): resolve
-   keeping all sides, renumber its migration to the pre-assigned number,
-   apply the after-rebase addendum if any, run the full check. Then a delta
-   review (6b). The implementer may run `git rebase --continue/--skip` in
-   its worktree only for this assigned task; it never pushes.
-2. Clean rebase → compare trees: `git diff <checked-commit> HEAD` empty →
-   the check holds; otherwise the full check runs on the final tree.
+   Conflicts → this PR's implementer as an assigned task (fast tier,
+   resumed while its context is small, otherwise a new one with the
+   conflict list): resolve keeping all sides, renumber its migration to the
+   pre-assigned number, apply the after-rebase addendum if any, commit and
+   report `GATE`. Then a delta review (6b). The implementer may run
+   `git rebase --continue/--skip` in its worktree only for this assigned
+   task; it never pushes.
+2. The final tree gets the gates of `gates.md` §3: one fresh full check
+   (CI's run counts when CI runs the check; a tree-identical rebase keeps
+   the earlier one), every CI job green, and each extra gate run fresh or
+   carried over because `git diff <checked-commit> HEAD -- <its inputs>` is
+   empty after a conflict-free rebase. Record each carry-over in the
+   journal.
 3. PR body (worker, after the final review), push, `gh pr create`, CI,
    merge, delete the remote branch, remove the worktree and local branch,
    journal line with the merge sha.
 4. **Rebase early:** right after each merge, rebase every remaining
-   APPROVED or in-review branch mechanically (no check yet) to surface
-   conflicts now rather than when its turn comes. Hand non-trivial
-   conflicts to that PR's implementer while the train continues.
-5. Optional stacking: when the next PR is blocked only by the current one's
+   APPROVED or in-review branch mechanically to surface conflicts now
+   rather than when its turn comes. **No gate after an intermediate
+   rebase**; only the rebase right before the merge gets the gates of 2.
+   Hand non-trivial conflicts to that PR's implementer while the train
+   continues.
+5. **Stalled branches leave the train.** A PR whose fix round takes longer
+   than one gate cycle leaves the merge order and is not rebased again
+   until its fix is approved; the next ready PR merges first.
+6. Optional stacking: when the next PR is blocked only by the current one's
    review, you may rebase it onto the current PR's tip and let it run its
    rebase round in parallel; after the merge use `--onto` as in 1.
 

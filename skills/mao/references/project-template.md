@@ -28,8 +28,29 @@ own rules (`AGENTS.md`, `CLAUDE.md`, `README.md`) here — only link to them.
   that runs every step, forces tests to really run (no cached test stage
   without a count), uses the names in "Parallel runs", and ends with one
   machine-readable line, e.g. `CHECK OK tree=<hash> <suite>=<passed> …`.
+- Check duration: <about N minutes>. Over about five minutes the
+  implementer hands it to a gate run (`<SKILL>/references/gates.md`).
+- Known flakes (a gate run reruns once when every failure is one of these):
+  <test names or patterns, each with the reason> | none
+- Extra gates and their input paths: <e.g. `scripts/deploy-check.sh` —
+  inputs `deploy/`, `scripts/`, `.github/`; a smoke only one host can run —
+  inputs …> | none. A gate carries over to a rebased tree when
+  `git diff <checked> HEAD -- <inputs>` is empty and the rebase had no
+  conflicts.
 - Targeted tests: `<command>` (with a PR-private tag / name)
 - Forbidden: <e.g. `npm install` without a lockfile — with the reason>
+
+## Agent environment
+
+Copied verbatim into every agent prompt that runs a command, so a new
+agent does not rediscover it. Keep it short and concrete. | None.
+- Tool paths: <e.g. prepend `<dir>` to `PATH` before `<tool>`; agent
+  shells do not read the interactive profile>
+- Before a check: <e.g. remove `<app>/dist`; a build cache can restore a
+  stale output that the bundle check then rejects>
+- Dependencies: <e.g. never run the package manager in a scratch copy that
+  links to this worktree's dependency folder>
+- Anything else every agent needs: <variables, ports, a lock command>
 
 ## Git
 
@@ -40,7 +61,9 @@ own rules (`AGENTS.md`, `CLAUDE.md`, `README.md`) here — only link to them.
 - PR title: `PR NN — <name from the table>` | <e.g. Conventional Commit
   title with suffix `(PR NN)` when squash merge uses the PR title>
 - Merge: `gh pr merge --squash --delete-branch`
-- CI checks: <names> | none
+- CI checks: <names> | none. Runs the full check: yes | no. When yes, CI
+  is the independent run: reviewers do not repeat the full check, and green
+  CI on the PR head is the final-tree check (`<SKILL>/references/gates.md`).
 
 ## Test host
 

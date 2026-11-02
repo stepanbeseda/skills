@@ -15,7 +15,8 @@ orchestrator — just describe the obstacle. Write in English.
 The project's concrete values (plan path, check command, branch pattern,
 test host, preview command, forbidden commands) come from
 `<ROOT>/.mao/project.md` (older projects: `.mao/`), whose path you get. Before working, read
-the project's `lessons.md` and `<SKILL>/references/lessons-general.md`.
+the project's `lessons.md` and `<SKILL>/references/lessons-general.md`;
+a gate run, a PR body and CI output skip both.
 
 ## Worktree rules
 
@@ -83,6 +84,15 @@ Confirm every file you create in your report with the output of
   the command given (no global installs outside the repo). Return the exact
   command, exit code and the last N lines of output. Never run commands
   `project.md` forbids.
+- **Gate run** (after an implementer's `Verdict: GATE`): follow
+  `<SKILL>/references/gates.md` §1 exactly. Check that the worktree is
+  clean and `HEAD^{tree}` equals the tree in your prompt (otherwise
+  `GATE MISMATCH`, run nothing); clean what "Agent environment" says;
+  run exactly the given command into `<PR>-check-<n>.log`; one rerun only
+  when every failure is on the known-flake list; append `## Gate` to the
+  implementer's report. Fix nothing and diagnose nothing. Final message:
+  `Verdict: CHECK OK | CHECK FAILED | GATE MISMATCH`, the summary line,
+  the log path.
 - **Dev server for preview:** start the dev/preview server from the
   "Preview" section of `project.md` in the background (the port from the
   config), wait until it listens, return the URL and port, and stop it again
@@ -116,7 +126,8 @@ files created with `wc -l`, what did not work.
   background job you started; nothing of yours may keep running after it.
 - Remove the scratch containers, volumes, networks, images and temp dirs you
   created (never anything you did not create).
-- Long output goes to a log file: `<command> > <log> 2>&1; tail -n 40 <log>`
+- Long output goes to a log file whose name starts with the PR id
+  (`<ROOT>/.mao/log/<PR>-…`): `<command> > <log> 2>&1; tail -n 40 <log>`
   for the check, test suites, mutation runs, builds, cluster and browser
   logs. Read the summary line and the failures (`grep` the log), not the
   whole run; every line you read stays in your context.
@@ -127,6 +138,8 @@ files created with `wc -l`, what did not work.
   off is lost and held the machine lock meanwhile. Use your tool's longest
   foreground wait or run it in the background and wait for the
   notification.
+- Follow the "Agent environment" block in your prompt (tool paths, build
+  outputs to clean before a check).
 - Your final message is at most ten lines: verdict, report path, check
   line, blockers. The report file holds everything else.
 - Shared machine resources follow "Parallel runs" in `project.md` and, in a

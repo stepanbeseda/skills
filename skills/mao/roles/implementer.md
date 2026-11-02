@@ -55,18 +55,27 @@ unless `project.md` says otherwise.
    code. Go through the acceptance criteria one by one and write for each
    what satisfies it. Mutation: disable the key feature, the test must go
    red. Run the spec's mutant list from **one** script: for each mutant
-   apply the patch, run only its killing test with output to a log,
+   apply the patch, run only its killing test with output to one log
+   (`<ROOT>/.mao/log/<PR>-mutants-<n>.log`),
    record red/green, restore the file (`git checkout -- <file>`); read the
    summary, not the logs. Do not spend a tool call per mutant. Go through the **whole** `checklist.md` and write `ok` / `n/a` /
    what you fixed for every item. What you cannot satisfy offline, mark
    "requires preview" (browser behaviour) or "requires test host" and
    describe the exact manual step.
-6. Run the check from `project.md` (the check script with your PR's tag
-   when there is one). It is not done until it is green. The report quotes
-   its summary line verbatim — numbers per suite and the tree; a test stage
-   served from cache without a count does not count as a run. The project has no
-   check yet and the spec says to introduce one → introduce it and record it
-   in `project.md`.
+6. **Hand the full check to the gate runner** (`<SKILL>/references/gates.md`).
+   Run the targeted tests of the areas you changed yourself. Then commit
+   everything (`git status --porcelain` empty), record
+   `git rev-parse HEAD^{tree}`, write the report with
+   `Check: pending tree=<hash>` and report `Verdict: GATE`. Do not start the
+   full check and wait for it: a worker runs it and appends the summary
+   line to your report. When the check is short (under about five minutes,
+   or `project.md` says so) or there is no single check, run it yourself in
+   the foreground, quote its summary line verbatim (numbers per suite and
+   the tree; a test stage served from cache without a count is not a run)
+   and report `DONE`. The project has no check yet and the spec says to
+   introduce one → introduce it and record it in `project.md`.
+   A part started after a red gate gets the log path: read the failures
+   from the log (`grep`, `tail`), fix, commit, and report `GATE` again.
 
 ## Working in parts
 
@@ -75,6 +84,10 @@ expensive with each step. After about 70 tool calls, stop at the next
 step of the spec's "Order of work" where the tests are green and committed.
 At about 90 tool calls stop anyway, even in the middle of a step: commit
 what you have as `wip: <step>` and write in the progress file what is red.
+Every tool call counts, a wait or a re-read too; the orchestrator records
+your count, and measured parts that ignored the stop ran 115–136 calls.
+Keep the progress file current after every finished step, so a stop at
+any point loses at most one step.
 Write `<ROOT>/.mao/log/<PR>-impl-N-progress.md`: the branch and the last
 commit, which steps of the order of work are done, the next step, decisions
 you made, what you found out about the repo that the next part needs (with
@@ -83,7 +96,7 @@ file path. The orchestrator starts a new implementer for the same attempt
 with that file; it reads the progress file instead of retracing your
 steps. A part is not a failed attempt. Your prompt says when you are a
 continuation: read the progress file first, then only the spec sections
-your remaining steps name (the prompt lists them). Do not read the lessons
+and appendix files your remaining steps name (the prompt lists them). Do not read the lessons
 files or `checklist.md` again; the part that finishes the attempt reads
 `checklist.md` for the self-review. Do not re-read code the progress file
 already summarizes unless you change it.
@@ -101,12 +114,12 @@ Write it into `<ROOT>/.mao/log/<PR>-impl-N.md` (you get the path)
 and return the same to the orchestrator; confirm the file with `wc -l`.
 
 ```
-Verdict: DONE | CONTINUE | BLOCKED
-Attempt: N/3 (part K when continued)
-Branch + last commit:
+Verdict: DONE | GATE | CONTINUE | BLOCKED
+Attempt: N/3 (part K when continued); tool calls used:
+Branch + last commit + tree:
 Acceptance criteria: criterion → met / offline / requires preview / requires host / not met
 Checklist: item → ok / n/a / fixed
-Check: (last ~10 lines)
+Check: (summary line verbatim, or `pending tree=<hash>` with GATE; targeted tests run)
 Decisions outside the spec: (each with the numbers behind it; the reviewer judges every one)
 Blockers:
 ```
@@ -118,7 +131,8 @@ Blockers:
   background job you started; nothing of yours may keep running after it.
 - Remove the scratch containers, volumes, networks, images and temp dirs you
   created (never anything you did not create).
-- Long output goes to a log file: `<command> > <log> 2>&1; tail -n 40 <log>`
+- Long output goes to a log file whose name starts with the PR id
+  (`<ROOT>/.mao/log/<PR>-…`): `<command> > <log> 2>&1; tail -n 40 <log>`
   for the check, test suites, mutation runs, builds, cluster and browser
   logs. Read the summary line and the failures (`grep` the log), not the
   whole run; every line you read stays in your context.
@@ -126,9 +140,12 @@ Blockers:
   (or a ranged read); a whole file only when it is short. Do not read the
   same file twice; note what you need from it.
 - Never wrap the check (or another long run) in `timeout`; a run you cut
-  off is lost and held the machine lock meanwhile. Use your tool's longest
-  foreground wait or run it in the background and wait for the
-  notification.
+  off is lost and held the machine lock meanwhile. The full check goes to
+  the gate runner (step 6); for other long runs use your tool's longest
+  foreground wait. A wait of more than five minutes expires your cache,
+  and the next step writes your whole context again.
+- Follow the "Agent environment" block in your prompt (tool paths, build
+  outputs to clean before a check).
 - Your final message is at most ten lines: verdict, report path, check
   line, blockers. The report file holds everything else.
 - Shared machine resources follow "Parallel runs" in `project.md` and, in a

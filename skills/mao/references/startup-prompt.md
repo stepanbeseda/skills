@@ -19,14 +19,19 @@ Rules:
   file, merge order, scheduling cap, merge train, docs PR, deploy bundle).
 - Roles: designer and reviewer on the strongest model at high effort,
   implementer and worker on a capable cheaper coding model at high effort.
-  Use the installed role agents (mao-<role>, or sbskills:mao-<role> from the
-  Claude Code plugin); without subagents run each role in a fresh context
-  from roles/<role>.md.
+  Fix rounds, rebases, conflict tasks and chores run on the cheaper model
+  even on a Risk: high PR. Use the installed role agents (mao-<role>, or
+  sbskills:mao-<role> from the Claude Code plugin) and do not tell them to
+  read their role file; without subagents run each role in a fresh context
+  from roles/<role>.md. Prompts follow references/prompt-template.md.
+- The implementer commits and reports GATE; a small worker runs the full
+  check (references/gates.md). With CI running the check, reviewers do not
+  repeat it and green CI on the PR head gates the merge.
 - Agents pass files in .mao/log/ (inventory, questions-K, brief, spec,
   spec-check, impl-N, review-N), not retellings of reports. The file is the
   truth; a lost hand-back is checked in the file and on the branch.
 - For PR-NN the designer takes its own inventory and returns QUESTIONS or
-  SPEC in one call. For free text a worker takes the inventory; the designer
+  INVENTORY; a new designer writes the spec from the inventory. For free text a worker takes the inventory; the designer
   asks about blind spots, you ask the user (answers recorded verbatim), the
   designer builds the brief, you confirm it with one question. Only then the
   spec.
@@ -39,7 +44,8 @@ Rules:
   → ask the user.
 - Any change after APPROVED except a tree-identical rebase gets a delta
   review. The PR body is built only after the final verdict.
-- A green check carries numbers and the tree it ran on.
+- A green check carries numbers and the tree it ran on. A gate result
+  carries over to a rebased tree only per references/gates.md §3.
 - After opening the PR, wait for CI; red CI = another implementer round.
 - A single-PR run does not start another PR; without --merge do not merge.
 - Before the final report: no agent, background loop, scratch container or

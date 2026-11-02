@@ -15,7 +15,9 @@ Applies only when `project.md` has a "Preview" section.
    the brief and takes a screenshot. Findings go to the implementer
    (`<PR>-preview-N.md`); it is repeated after the last review fix
    (regressions). Default level for every app with a UI — without it the
-   app is only "built", not "done". No browser tool in the session → the
+   app is only "built", not "done". The preview may run during the review
+   only because reviewers mutate a scratch copy, never the worktree it
+   serves from. No browser tool in the session → the
    flow is marked "requires manual preview" with exact steps for the user.
 3. **Production / demo deployment.** Only when the user explicitly named it
    (hosting, VPS, static host). Without it, deployment criteria are marked

@@ -94,21 +94,22 @@ The role agent's default tier fits its main task. For the tasks below, pass
 the tier and effort explicitly when you **start** an agent (in Claude Code:
 the `model` and `effort` parameters; strong = `opus`, fast = `sonnet`,
 light = `haiku`). A resumed agent keeps its model **and its whole
-context**, and every step it takes re-reads that context. Resume an agent
-only while its context is small (about 150k tokens or less; Claude Code
-reports an agent's tokens when it finishes) or when the next round really
-needs what it learned. Otherwise start a **new** agent of the same role and
-give it file paths: the last report, the finding, the spec sections. A
-one-line fix in an agent that carries 400k tokens costs more than a fresh
-agent that reads 40k.
+context**; resume only while it is small (about 150k tokens), otherwise
+start a **new** agent of the same role with file paths. Follow the table:
+in a measured run, strong-tier work the table puts on the fast tier
+(rebases, a chore, a `Risk: normal` PR, fix rounds) was 12 % of the run.
+The strong tier costs more for **every** token class, cache reads included
+(about 1.7× at the list prices of that run), so it is kept for the
+decisions and for `Risk: high` code.
 
 | Task | Tier, effort | Note |
 |---|---|---|
-| designer: inventory, questions, brief, spec | strong, high | the decisions everything else rests on |
+| designer: inventory, questions, brief, spec | strong, high | the decisions everything else rests on; the spec is a **new** designer (step 2) |
 | designer: spec fix after the spec check, addendum | resume while small, else new (strong, high) | gets the spec and the spec check |
-| implementer: attempt N | fast, high; **strong, high** when the spec says `Risk: high` | cache reads cost the same on both tiers; output costs about twice |
-| implementer: next part of an attempt (`Verdict: CONTINUE`) | fast, high, **new** agent | gets the progress file |
-| implementer: round after `CHANGES`, follow-up, conflict resolution | new (fast, high) unless the context is small | gets the review or the conflict list and the last impl report |
+| implementer: attempt N | fast, high; **strong, high** when the spec says `Risk: high` | |
+| implementer: next part of an attempt (`Verdict: CONTINUE`, red gate) | same tier as the attempt, **new** agent | gets the progress file or the gate log |
+| implementer: round after `CHANGES`, follow-up, rebase, conflict resolution | **fast**, high, new unless small — even on a `Risk: high` PR | strong only when the finding is a race or a guard design error |
+| worker: gate run (`Verdict: GATE`) | fast, medium, new | `references/gates.md` |
 | reviewer: round 1 and rounds after `CHANGES` | strong, high (light track: strong, medium) | resume for round 2+ only while small |
 | reviewer: delta review (6b) of a small diff (≤ ~100 changed lines, no new design) | fast, high, **new** agent | gets the diff, the last review and the impl report |
 | reviewer: delta review of a larger diff | strong, high; resume the round-1 reviewer only while small | |
@@ -116,60 +117,29 @@ agent that reads 40k.
 | worker: targeted re-check | fast, high, new unless small | gets the spec check and the list of changed sections |
 | worker: PR body | light, medium | you check names, pronouns and counts before opening the PR |
 | worker: docs PR after merge (Delivered blocks, lessons) | light, high | the check still runs on it |
-| worker: CI output, plan edits, other copying | light, medium | |
+| worker: CI output, plan edits, chores, other copying | light or fast, medium | a chore that changes code: fast, high |
 | research outside the plan (prices, vendors) | fast, high | |
 
 ### Context budget
 
-Nearly all of a run's tokens are context that agents re-read at every step:
-in measured runs, 97 % of the tokens were cache reads, and the quarter of
-agents with more than 150 steps used more than half of everything. These
-rules keep that down:
+Nearly all of a run's tokens are context that agents re-read at every
+step (96–97 % cache reads in measured runs). The rules, in short; the
+detail and the measurements are in `references/context-budget.md`:
 
-- **Long output goes to a file.** Every agent sends the check, test suites,
-  mutation runs, builds and cluster or browser logs to a log file and reads
-  only the summary line and the failures (`… > <log> 2>&1; tail -n 40
-  <log>`). Each line read stays in the context for the rest of the run.
-- **Implementers work in parts.** After about 70 tool calls, at the next
-  step of the spec's order of work with green tests, the implementer writes
-  `<PR>-impl-N-progress.md` and reports `Verdict: CONTINUE`. You start a
-  new implementer for the same attempt with that file and the spec
-  sections its next steps name in the order of work
-  (`roles/implementer.md`, "Working in parts"). A part is not an attempt.
-  A continuation reads no lessons and no checklist; the last part reads
-  the checklist for its self-review. About 90 tool calls is the hard
-  stop, even in the middle of a step: commit the work as `wip:` and say
-  in the progress file what is red. A measured part that ignored the
-  soft limit ran 131 calls and cost as much as two parts.
-- **Designers work in parts too.** The spec phase re-reads
-  `<PR>-inventory.md` instead of exploring again. After about 90 tool
-  calls the designer writes `<PR>-design-progress.md` (decisions, runs
-  done with their `.out` paths, spec sections written, what is left) and
-  reports `Verdict: CONTINUE`; a new designer finishes the spec. The
-  largest measured designers ran 130–150 calls at up to 360k context.
-- **Spec checks have a budget** of about 60 tool calls, spent in this
-  order: repo facts by `grep`/`ls` (paths, identifiers, import and
-  architecture rules, migration numbers, ports, env variables), then
-  executable claims without a recorded run, guards and acceptance
-  criteria first. Claims left when the budget runs out are listed as
-  "not checked" for the implementer and the reviewer.
-- **Mutants run from one script.** The implementer writes each mutant as
-  a small patch (or `sed` line) and runs the list with one loop script
-  that applies a mutant, runs its killing test, records red/green to one
-  log and restores the file. One tool call per mutant was a whole
-  implementer part in measured runs.
-- **Read by range.** Agents find code with `grep -n` and read it with
-  `sed -n a,bp` (or a ranged read), not whole files, and do not read a file
-  twice in one context. Reviewers read the diff file by file, starting
-  from `git diff --stat`. Whole files and whole `cat`s were the largest
-  single item in measured implementer contexts.
-- **Design one PR ahead.** Start a designer when the PR's dependencies are
-  merged or approved, not earlier. A spec written two or three merges ahead
-  gets rewritten and re-checked when those merges land.
-- **At most three heavy agents at once** (implementers, reviewers and spec
-  checks that run the check, designers that run prototypes), unless
-  "Parallel runs" in `project.md` sets another number. More only wait for
-  the machine lock and make timing-sensitive tests flaky.
+- Long output goes to a log file named `<PR>-…`; agents read the summary
+  and the failures. Code is read by range, never a file twice.
+- Implementer parts: ~70 tool calls, **hard stop ~90**; designers write
+  the inventory by ~50 calls and stop at ~90. The prompt's first line
+  states the budget; progress files stay current; you note each agent's
+  tool-call count in the journal.
+- No big agent waits for the full check: the implementer commits and
+  reports `GATE`, a small worker runs it (`references/gates.md`).
+- Specs keep appendices in separate files; each step of the order of work
+  names what it needs. Spec checks: ~60 calls, repo facts first.
+- Mutants run from one script. Design one PR ahead. At most three heavy
+  agents at once (or the "Parallel runs" number).
+- Prompts follow `references/prompt-template.md`; an installed role agent
+  is not told to read its role file again.
 
 ### Light track
 
@@ -199,14 +169,13 @@ restore or migration of existing data, or money. The implementer then runs
 on the strong tier. In measured runs every blocker that review found on
 such PRs (a race that loses data, a guard that fails open, a restore
 runbook that cannot run) had passed the fast implementer's green check,
-self-review and mutants.
+self-review and mutants. Rebases, conflict tasks and fix rounds of such a
+PR still run on the fast tier (see the table).
 
 You report to the user at milestones (a merge, a question, a blocker, a
-finished batch) and do several git and journal steps per turn; every turn
-of yours re-reads your own context too. Ask every agent for a final
-message of at most ten lines (verdict, report path, check line, blockers):
-the report file holds the rest, and every line of a hand-back stays in
-your context for the rest of the run.
+finished batch); every turn of yours re-reads your own context. Ask every
+agent for a final message of at most ten lines (verdict, report path,
+check line, blockers): every line of a hand-back stays in your context.
 
 ### Running roles
 
@@ -220,22 +189,24 @@ reviewer independent and the orchestrator's context small:
 | OpenCode | `mao-<role>` subagent (`~/.config/opencode/agents/mao-<role>.md`) | the Task tool / `@mao-<role>` |
 | no subagents | — | run the role yourself in a fresh session or context, reading `<SKILL>/roles/<role>.md` first |
 
-When the role agent is not installed but your tool can start a generic
-subagent, start one and make its first instruction "read and follow
-`<SKILL>/roles/<role>.md`".
+An installed role agent already has its role file as its system prompt:
+do not tell it to read `roles/<role>.md`. When the role agent is not
+installed but your tool can start a generic subagent, start one and make
+its first instruction "read and follow `<SKILL>/roles/<role>.md`".
 
 A subagent cannot start subagents; you start every round. Name the agents
-(`designer-1`, `implementer-2`, …) so reports can refer to them. Agents do
-not message each other — every round goes through you. A new agent has no
-context from the previous one: it gets **file paths**, not a retelling of a
-report. Resuming the same agent for the next round of the same role (spec
-fix, next implementation round, review round 2) saves the reading only
-while its context is small; see "Model and effort per task".
+`PR-NN <phase>` (`references/prompt-template.md`) so reports and the cost
+helper can refer to them. Agents do not message each other — every round
+goes through you. A new agent has no context from the previous one: it
+gets **file paths**, not a retelling of a report.
 
-Give every agent in its prompt: `<ROOT>`, the branch, `<SKILL>`, and the
-paths to the project's `project.md`, `checklist.md` and `lessons.md` (in a
-batch also the batch file). `lessons.md` is the memory shared across runs
-and worktrees.
+Every prompt follows `references/prompt-template.md`: `<ROOT>`, the
+branch, `<SKILL>`, the paths to `project.md`, `checklist.md` and
+`lessons.md` (in a batch also the batch file), the files to read, the
+report path, the task, and the "Agent environment" block of `project.md`
+copied verbatim (tool paths, build outputs to clean, anything a fresh
+agent would otherwise rediscover). `lessons.md` is the memory shared
+across runs and worktrees.
 
 Ask the user with your tool's structured question tool when it has one
 (several questions per call); otherwise as a short numbered list where each
@@ -259,14 +230,19 @@ only the verdict, the path, the check line and blockers.
 | `<PR>-inventory.md` | designer or worker | designer |
 | `<PR>-questions-K.md` | designer (questions), orchestrator (answers verbatim) | designer, reviewer on escalation |
 | `<PR>-brief.md` | designer | worker (inserts into the plan), orchestrator |
-| `<PR>-spec.md` | designer | everyone |
+| `<PR>-spec.md`, `<PR>-spec-<X>-<name>.md` | designer (body; appendices) | everyone, by the sections a step names |
+| `<PR>-design-progress.md` | designer (a part that ends with `CONTINUE`) | the next designer |
 | `<PR>-spec-check.md` | worker | designer (blocking), implementer (notes), orchestrator |
-| `<PR>-impl-N.md` | implementer (attempt N) | reviewer, next implementer |
+| `<PR>-impl-N.md` | implementer (attempt N), gate run (`## Gate`) | reviewer, next implementer |
 | `<PR>-impl-N-progress.md` | implementer (a part of attempt N that ends with `CONTINUE`) | the implementer of the next part |
+| `<PR>-check-<n>.log`, `<PR>-mutants-<n>.log`, `<PR>-proto/` | the agent that ran it | whoever the report points to |
 | `<PR>-preview-N.md` | orchestrator (browser findings) | implementer |
 | `<PR>-review-N.md` | reviewer (round N, incl. delta rounds) | implementer, designer on escalation, worker (PR body) |
 | `<PR>-pr-body.md` | worker | orchestrator (opens the PR with it) |
 | `DEPLOY-<date>.md` | worker | user (deploy bundle, step 8) |
+
+Every file an agent writes here starts with the PR id, logs included, so
+parallel PRs never share a file.
 
 ## Procedure
 
@@ -296,18 +272,25 @@ only the verdict, the path, the check line and blockers.
    `git branch --list`). For `PR-NN` the designer takes the inventory itself
    in step 2; the host gate, when a profile was given, is a short worker
    task.
-2. **Inventory + clarification or spec (designer, one call).** The designer
-   gets the chapter number (or the request text and the worker's
-   inventory), reads the plan's decisions, common conditions, open items
-   and the "Delivered" blocks of the PRs it builds on, takes its own
-   inventory into `<PR>-inventory.md` (PR-NN only), and then **either**
-   writes `<PR>-questions-1.md` and reports `Verdict: QUESTIONS` — only for
-   blind spots that change scope, each with a default — **or**, when nothing
-   scope-changing is open, goes straight on to the spec (step 3) and reports
-   `Verdict: SPEC`. For free text there are always questions or at least a
-   brief. You ask the questions (at most two rounds per run) and write the
-   answers **verbatim** under `## Answers` in the same file. The designer
-   decides small things alone and records them.
+2. **Inventory + clarification (designer).** The designer gets the
+   chapter number (or the request text and the worker's inventory), reads
+   the plan's decisions, common conditions, open items and the "Delivered"
+   blocks of the PRs it builds on, and writes `<PR>-inventory.md` (PR-NN
+   only) by about call 50: files with line ranges, the interfaces it will
+   design against, decisions so far, `Track: light | full`. Then it
+   **either** writes `<PR>-questions-1.md` and reports `Verdict: QUESTIONS`
+   — only for blind spots that change scope (behaviour, data, access,
+   stack, interface, delivery, verification; `roles/designer.md`), each
+   with a default — **or**
+   reports `Verdict: INVENTORY` when nothing scope-changing is open. The
+   spec (step 3) is written by a **new** designer from the inventory and
+   the answers, so it starts small instead of at the end of the
+   exploration. On the light track a designer whose inventory took under
+   ~40 calls may go straight on to the short spec (`Verdict: SPEC`). For
+   free text there are always questions or at least a brief. You ask the
+   questions (at most two rounds per run) and write the answers
+   **verbatim** under `## Answers` in the same file. The designer decides
+   small things alone and records them.
    **2b. Brief.** From the answers the designer builds `<PR>-brief.md`: a
    finished chapter `### PR NN — <name>` (brief + `**Done when:**`) and a PR
    table row. You ask one confirmation question ("Done when" ≤ 8 items —
@@ -320,7 +303,9 @@ only the verdict, the path, the check line and blockers.
    every later rebase (four rebases of one PR in a measured run). With `--brief-only` → push, PR with the
    chapter only, stop. For a `PR-NN` whose chapter already exists, 2b is
    skipped.
-3. **Design (designer, attempt N/3).** Spec into `<PR>-spec.md`; acceptance
+3. **Design (a new designer, attempt N/3).** It reads the inventory and
+   the answers, not the code again, and writes the spec into
+   `<PR>-spec.md` (appendices in `<PR>-spec-<X>-<name>.md`); acceptance
    criteria come from the plan chapter. Every claim about the behaviour of
    a third-party library, SDK, upstream image or external API that the spec
    relies on is backed by a run (in the project's environment, offline) or
@@ -355,15 +340,16 @@ only the verdict, the path, the check line and blockers.
 5. **Implementation (implementer, attempt N/3).** Gets the spec path, the
    spec-check path, the branch, the attempt number, and paths to earlier
    `<PR>-impl-*.md`, `<PR>-preview-*.md` and `<PR>-review-*.md`. Report into
-   `<PR>-impl-N.md`, ending with the check's summary line (see "Check
-   evidence").    `Verdict: CONTINUE` with `<PR>-impl-N-progress.md` means the
-   attempt is not finished: start a new implementer for its next part
-   (a designer's `Verdict: CONTINUE` with `<PR>-design-progress.md`
-   works the same way). The
-   attempt failed when the report states a blocker or the
-   check is not green. A new project without a check: the first PR must
-   introduce one and record it in `project.md` — the designer makes it an
-   acceptance criterion.
+   `<PR>-impl-N.md`. `Verdict: GATE` with `Check: pending tree=<hash>`: the
+   work is committed; start a gate run (worker, `references/gates.md`),
+   which appends the check's summary line to the report. `CHECK FAILED` →
+   a new implementer part with the log path. `Verdict: CONTINUE` with
+   `<PR>-impl-N-progress.md` means the attempt is not finished: start a
+   new implementer for its next part (a designer's `CONTINUE` with
+   `<PR>-design-progress.md` works the same way). The attempt failed when
+   the report states a blocker or the check stays red. A new project
+   without a check: the first PR must introduce one and record it in
+   `project.md` — the designer makes it an acceptance criterion.
    **5b. Preview (you + worker; only when `project.md` has a "Preview"
    section).** The worker starts the dev/preview server and returns the URL.
    You open a browser, walk the main flow of the brief (see
@@ -371,10 +357,13 @@ only the verdict, the path, the check line and blockers.
    findings to `<PR>-preview-N.md`; they go back to the implementer (not
    counted as an attempt). No browser available → mark the flow "requires
    manual preview" with exact steps for the user. The worker stops the
-   server afterwards.
+   server afterwards. A preview may run while the reviewer works only
+   because reviewers never change the worktree (mutants run in a copy,
+   `roles/reviewer.md`); otherwise walk it after the review.
 6. **Review (reviewer, round N).** Report into `<PR>-review-N.md`, first line
    `Verdict: APPROVED | CHANGES`. Round 1 ticks off the whole `checklist.md`
-   and runs the check itself. Round 2+ verifies fixes and looks for
+   and runs the full check itself only when CI does not run it
+   (`references/gates.md` §2). Round 2+ verifies fixes and looks for
    regressions; new findings outside the fixed places are marked **new**.
    `CHANGES` → implementer, next round. `APPROVED` → delivery (with a
    preview, repeat 5b once after the last fix). Every review ends with a
@@ -383,28 +372,29 @@ only the verdict, the path, the check line and blockers.
    for (a) a security or data-protection issue, or (b) product behaviour
    that no test catches (a surviving non-equivalent mutant of product code).
    Put every chosen item into **one** follow-up. Everything else — wording,
-   docs, comments, log polish, a test for a branch the code already gets
-   right by construction — goes into the batch file as a note for the next
-   PR that touches those files, and into the Delivered block. Each extra
-   round costs a check run and a delta review.
+   copy, toast texts, docs, comments, log polish, a test for a branch the
+   code already gets right by construction — goes into the batch file as a
+   note for the next PR that touches those files, and into the Delivered
+   block, even when the round looks cheap: each costs a gate run, a delta
+   review and 30–40 minutes before the merge.
    **6b. Delta review.** Any change to the branch **after** `APPROVED` other
    than a tree-identical rebase — conflict resolution, a fix of a
    non-blocking finding, an addendum applied after a rebase, a renumbered
    migration — gets a delta review: the reviewer reads
    `git diff <approved-commit>..HEAD` plus the conflict list and writes the
    next `<PR>-review-N.md`. A change nobody reviewed never merges. The
-   delta reviewer does not repeat the full check when the implementer's
-   check line names the reviewed tree (`roles/reviewer.md`, step 7); the
-   check on the final tree is then the implementer's run. A rebase
-   is tree-identical when `git diff <checked-commit> HEAD` is empty; then
-   the earlier check and review still hold — record the comparison in the
-   journal.
+   delta reviewer does not repeat the full check when the report's check
+   line names the reviewed tree (`roles/reviewer.md`, step 7). A rebase is
+   tree-identical when `git diff <checked-commit> HEAD` is empty; then the
+   earlier check and review hold — record the comparison in the journal.
 7. **Delivery.** Rebase onto `origin/<base>` only if needed (when the base
    branch was squash-merged under you, use
    `git rebase --onto origin/<base> <old-base-tip>`; conflicts → the
-   implementer resolves them as an assigned task, then 6b). The check must
-   be green on the **final tree** — a run on it, or a recorded
-   tree-identical comparison with a checked commit. Only then the worker
+   implementer resolves them as an assigned task, then 6b). The **final
+   tree** needs the gates of `references/gates.md` §3: one fresh full
+   check on it (CI's run counts when CI runs the check), every CI job
+   green, and every extra gate run fresh or carried over because its input
+   paths did not change (record the comparison in the journal). The worker
    builds `<PR>-pr-body.md` per `references/pr-template.md` from the final
    reports (never while a review is still pending). You push and open the
    PR with that body (on GitHub: `gh pr create --body-file`).
@@ -428,26 +418,16 @@ project has a single check script (see `project.md`), every agent runs
 exactly that and quotes its last line (e.g. `CHECK OK tree=<hash> …`).
 Otherwise the report quotes, per command, the exact command, exit code and
 the test summary line. A build step served from cache without a visible test
-count is not a run: force the tests (the way is in `project.md`).
+count is not a run: force the tests (the way is in `project.md`). Who runs
+the check and when a result carries over: `references/gates.md`.
 
-## Agent hygiene (tell every agent; the role files say it too)
+## Agent hygiene (the role files say it in full)
 
-- No background polling loops (`until …; do sleep …; done`, `while pgrep`).
-  Wait in the foreground with a timeout. Before reporting, stop every
-  background job the agent started.
-- Remove scratch containers, volumes, networks, images and temp dirs the
-  agent created; never anything it did not create.
-- Long command output goes to a log file; the agent reads the summary and
-  the failures only ("Context budget").
-- Code is read by range, not by whole file ("Context budget").
-- The check is never wrapped in `timeout`: a run cut off by the agent's
-  own timeout is thrown away and repeated, and it held the machine lock
-  the whole time. Long runs go to the background and the agent waits for
-  the notification.
-- The final message is at most ten lines; the report file holds the rest.
-- Shared machine resources (build cache, image tags, compose project names,
-  ports, databases, CPU) follow the "Parallel runs" section of `project.md`;
-  in a batch the batch file adds the PR-specific values.
+No background polling loops; stop your own jobs before reporting. Remove
+only the scratch resources you created. Long output to a `<PR>-…` log,
+code by range. Never wrap the check in `timeout`. Final message ≤ ten
+lines. Shared machine resources follow "Parallel runs" in `project.md` and
+the batch file.
 
 ## New task and the plan
 
@@ -462,25 +442,6 @@ count is not a run: force the tests (the way is in `project.md`).
   nor files outside the repository.
 - Only what stands in the plan or in this run's `<PR>-questions-*.md` counts
   as answered; an agent's memory from other runs does not replace an answer.
-
-## Blind spots (what the designer asks about)
-
-Only what the request and plan leave open and what changes scope, acceptance
-criteria, stack or host. Each with a default:
-
-- **Behaviour** — what it does step by step, what is out of scope (default:
-  only what the request says).
-- **Data** — what is stored, where, in what shape, migration of existing
-  data, whether data is shared between users.
-- **Users and access** — single vs. multi-user, authentication, permissions.
-- **Stack** — only for a new project or a new component; otherwise follow the
-  repository. Web default for an empty repo: React + Vite + TypeScript, no
-  backend.
-- **Interface** — CLI / API / UI; for UI: devices, style, UI language.
-- **Delivery** — where it runs (default: PR into the repo + runnable locally;
-  a production host only when the user names one).
-- **Verification** — how we know it is done (default: check from
-  `project.md` + tests + preview of the main flow where there is a UI).
 
 ## Escalation
 
@@ -529,3 +490,5 @@ no background job, container or worktree of the run is left
 (`git worktree list`, `ps`, `docker ps -a`); clean up what the run created.
 
 `references/startup-prompt.md` holds a prompt for starting a session by hand.
+`references/experiments.md` lists opt-in experiments and how to measure a
+run per PR and phase with `scripts/agent-cost.py`.

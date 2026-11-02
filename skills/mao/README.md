@@ -9,13 +9,14 @@ reports and decides; the roles do the work:
 | designer | strong | inventory, clarifying questions, plan chapter, spec (backed by runs) |
 | implementer | fast | code, tests, docs, self-review, green check; works in parts |
 | reviewer | strong | independent review before the PR, delta review after any later change |
-| worker | fast / light | spec check, commands, PR body, docs, plan edits, deploy bundle |
+| worker | fast / light | spec check, gate runs, commands, PR body, docs, plan edits, deploy bundle |
 
 Pipeline per PR: questions → spec → spec check → implementation →
 review (→ fixes → review) → PR → green check and CI → merge → docs.
 
 The procedure is in [SKILL.md](SKILL.md), the roles in [roles/](roles/),
-templates in [references/](references/), and the history in
+templates in [references/](references/), a cost helper in
+[scripts/agent-cost.py](scripts/agent-cost.py), and the history in
 [CHANGELOG.md](CHANGELOG.md).
 
 ## Use
@@ -34,6 +35,7 @@ It runs only when invoked explicitly. Stop-and-ask rules in the project's
 
 | Version | Date | Theme |
 |---|---|---|
+| 0.2.7 | 2026-11-02 | gate runner, fast tier for fix rounds and rebases, designer split at the inventory, CI as the independent check, gate carry-over, prompt template, opt-in experiments, cost helper |
 | 0.2.6 | 2026-10-30 | light track, `Risk: high` → strong implementer, designer parts, spec-check budget, mutants from one script, plan edits straight to base |
 | 0.2.5 | 2026-10-30 | README with benchmarks, CHANGELOG (docs only) |
 | 0.2.4 | 2026-10-30 | read by range, diff-first review, shorter implementer parts, short hand-backs |
@@ -110,6 +112,78 @@ Reading the table:
   first, spec sections only).
 - The orchestrator's share grew to about 9 % as the roles got cheaper;
   0.2.4's ten-line hand-backs target it.
+
+### What 0.2.6 showed (what 0.2.7 changes)
+
+Measured on the agents started under 0.2.6 (102 agents, 7 feature merges,
+several PRs still in flight) plus the orchestrator in that window. Costs
+are estimated from list prices; the shares below do not depend on the
+price level. `scripts/agent-cost.py` reproduces the breakdown from the
+transcripts.
+
+| Phase | Share of subagent cost | Tool calls per agent | Note |
+|---|---|---|---|
+| Implementation parts | 37.5 % | 87 | 50–70 % of wall clock idle, waiting on the check |
+| Design | 26.5 % | 113 | 10 of 11 designers over the ~90-call limit |
+| Review round 1 | 11.5 % | 63 | ran the full check again |
+| Spec check | 8.0 % | 69 | found blocking errors in 7 PRs |
+| Fix rounds | 6.0 % | 52 | 7 of 7 after an unpinned guard |
+| Rebases | 4.5 % | 57 | median 73 min, mostly waiting on gates |
+| Preview, delta review, PR body, spec fix | 5.7 % | 20–51 | |
+
+The orchestrator was 10 % of the window on top. Average context per step
+stayed at 136k (140k in 0.2.5): the 0.2.3/0.2.4 reading rules hold.
+
+- **Idle waits on the check.** A full check took 19–52 minutes. Agents
+  that waited for it lost their cache; re-writing it was 8.7 % of the
+  window (14 % over the whole run), three quarters of it in implementers
+  → the implementer commits and reports `GATE`, a small fast-tier worker
+  runs the check and appends the line (`references/gates.md`).
+- **The model table was not followed.** 23 of 24 implementer agents ran on
+  the strong tier, because nearly every spec said `Risk: high`; rebases, a
+  chore, a `Risk: normal` PR and fix rounds on the strong tier were 12 % of
+  the window → fix rounds, rebases, conflict tasks and chores stay on the
+  fast tier even on `Risk: high` PRs.
+- **Correction.** 0.2.4's note below says cache reads cost the same on
+  both tiers. At list prices every token class, cache reads included,
+  costs about 1.7× on the strong tier. The 40 % estimate was too low.
+- **Designers ignored the part limit.** 10 of 11 ran 92–170 calls and
+  wrote the inventory only at call 80–110, at 235–285k context, then wrote
+  the spec in that context → the designer splits at the inventory (by
+  ~call 50); a new designer writes the spec. Hard stops are stated in the
+  prompt's first line, progress files stay current, and you record each
+  agent's tool-call count.
+- **The same check ran three or four times per tree** (implementer,
+  reviewer, CI, again after a clean rebase); one PR left nine check logs
+  across four rebases → with CI running the check, reviewers do not repeat
+  it; no gate after an intermediate rebase; a gate result carries over when
+  its input paths did not change; stalled branches leave the merge train.
+- **Rework.** 7 of 7 round-1 `CHANGES` had the same blocking finding: a
+  guard or branch no test pinned (a reviewer mutant survived). Fix rounds
+  and delta reviews were 7.3 % of the window → opt-in experiment E1 (guard
+  mutants per operand), not yet a default.
+- **Fixed context.** Every subagent started with about 31k tokens of tool
+  schemas and skill listings, 13 % of subagent cost, and every prompt also
+  told the agent to read its role file, which is already its system prompt
+  → no role-file re-read, one short prompt template, and opt-in lean agent
+  definitions (experiment E2).
+- **Specs re-read whole.** Implementer parts read the whole 580–860-line
+  spec 29 times → appendices in separate files, each step names what it
+  reads.
+- **Small incidents** that became rules: reviewer mutants in the worktree
+  changed files under a running preview; a scratch install rewrote the
+  worktree's `node_modules/.bin` shims; a build cache restored a stale
+  output before the check → mutants in a `git archive` copy, and an "Agent
+  environment" block in `project.md` that every prompt carries.
+- **Quality signal on tiers.** Round-1 blocking findings were about 1.0
+  per PR with strong implementers (n = 8) and 2.4 with fast ones on earlier
+  versions (n = 9). Small samples; it is why per-step tiers on `Risk: high`
+  PRs are an experiment (E3), not a default.
+
+Expected effect of the 0.2.7 defaults: about 18–20 % of the cost of a
+comparable window, and 25–35 minutes less on each PR's critical path
+(one full check fewer). The experiments could add another 12–18 % if they
+hold.
 
 ### What 0.2.4 showed (what 0.2.6 changes)
 

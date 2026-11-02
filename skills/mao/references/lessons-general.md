@@ -84,6 +84,17 @@ batch, backend services and web apps); project-specific lessons live in
   Before live steps and after every wait for the user, check with a boolean
   that the current public IP is in the host's allowlist, and do not print
   the IP. ssh error output contains the host address.
+- **A build cache can restore stale outputs.** A cache hit restored a
+  build output folder without emptying it first; leftover chunks from an
+  earlier preview build failed the bundle check. Name the folders to remove
+  before a check in "Agent environment" of `project.md`.
+- **A scratch install rewrote the worktree.** A reviewer ran the package
+  manager in a scratch copy whose dependency folder linked to the worktree;
+  it rewrote the worktree's `node_modules/.bin` shims and the next check
+  failed. Mutate a `git archive` copy and never install through a link.
+- **Mutants under a running preview.** A reviewer's in-worktree mutants
+  changed files a preview server was serving, and the preview had to be
+  walked again. Reviewers mutate only a scratch copy.
 - **Agents leave background loops.** `until …; do sleep 10; done` waiting
   for a file that never comes ran for 14 hours after the agents reported.
   No background polling; wait in the foreground with a timeout and stop

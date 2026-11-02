@@ -18,6 +18,19 @@ Work only in `<ROOT>`, absolute paths. Edit nothing, commit nothing, never
 `git stash`, do not switch branches. Do reproductions in a scratch
 directory.
 
+**Mutants and probes never touch the worktree.** A preview server or
+another agent may be serving from it while you review; a mutant applied
+there changes what they see. Make a scratch copy of the reviewed commit
+(`git -C <ROOT> archive HEAD | tar -x -C <scratch>`) and mutate the copy.
+The copy may use the worktree's installed dependencies through a link,
+read-only: never run an install or a package-manager command in the copy
+that writes through that link (it rewrites the worktree's
+`node_modules/.bin` shims and similar files). When the copy needs its own
+install, install into the copy only. First confirm that the copy runs
+the code you mutate: one spec mutant that the implementer reports as
+killed must go red there too. Remove the copy when you are done.
+After the review `git -C <ROOT> status --porcelain` must be as you found it.
+
 ## Procedure
 
 1. Round 1: read `<SKILL>/references/lessons-general.md`, the project's
@@ -30,13 +43,19 @@ directory.
    file by file (`git diff origin/<base>...HEAD -- <file>`, more `-U`
    context where a hunk needs it); read tests as carefully as code. Open
    surrounding code by range (`grep -n`, `sed -n a,bp`); a whole file only
-   when it is new and short. Run the check from `project.md` yourself with your
-   own private tag — the implementer's claims do not count without
-   verification; a cached test stage without a count is not your run. Run every new
-   command or recipe. Mutation: the implementer already ran the spec's
-   mutants; you run **3–5** of your own choice, aimed at where you suspect
-   a test is weak (a guard, a boundary, an error path), not the whole list
-   (2–3 on the light track). Judge every item of the implementer's
+   when it is new and short. Verify the check line: its `tree=` equals
+   `git rev-parse HEAD^{tree}` of the commit you review. When the project's
+   CI runs the same check on the PR (`project.md`, "CI checks"), CI is the
+   independent run: do not run the full check; run the tests of the
+   changed areas. Otherwise run the check from `project.md` yourself with
+   your own private tag — the implementer's claims do not count without
+   verification; a cached test stage without a count is not your run. The
+   prompt says which case applies. Run every new command or recipe.
+   Mutation: the implementer already ran the spec's mutants; you run
+   **3–5** of your own choice, in the scratch copy, aimed at where you
+   suspect a test is weak (a guard and each operand of its condition, a
+   boundary, an error path, a loop over protected items), not the whole
+   list (2–3 on the light track). Judge every item of the implementer's
    "Decisions outside the spec" and the spec check's "Not checked" list
    explicitly: accepted, or a finding.
 3. Go through **every** acceptance criterion in the spec and mark it: met /
@@ -102,7 +121,8 @@ Not verified: (what requires browser preview, the test host or a human)
   background job you started; nothing of yours may keep running after it.
 - Remove the scratch containers, volumes, networks, images and temp dirs you
   created (never anything you did not create).
-- Long output goes to a log file: `<command> > <log> 2>&1; tail -n 40 <log>`
+- Long output goes to a log file whose name starts with the PR id
+  (`<ROOT>/.mao/log/<PR>-…`): `<command> > <log> 2>&1; tail -n 40 <log>`
   for the check, test suites, mutation runs, builds, cluster and browser
   logs. Read the summary line and the failures (`grep` the log), not the
   whole run; every line you read stays in your context.
@@ -113,6 +133,8 @@ Not verified: (what requires browser preview, the test host or a human)
   off is lost and held the machine lock meanwhile. Use your tool's longest
   foreground wait or run it in the background and wait for the
   notification.
+- Follow the "Agent environment" block in your prompt (tool paths, build
+  outputs to clean before a check).
 - Your final message is at most ten lines: verdict, report path, check
   line, blockers. The report file holds everything else.
 - Shared machine resources follow "Parallel runs" in `project.md` and, in a

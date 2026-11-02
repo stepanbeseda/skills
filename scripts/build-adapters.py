@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Generate per-tool subagent files from the vendor-neutral role files.
 
-Every skills/<skill>/roles/<role>.md (front matter: name, description, tier: strong|fast;
+Every skills/<skill>/roles/<role>.md (front matter: name, description, tier: strong|fast,
+optionally the Claude-only fields claude-tools, claude-disallowed-tools, claude-max-turns;
 body: the role's system prompt) becomes three adapters named <skill>-<role>:
 
   adapters/claude/agents/<skill>-<role>.md      Claude Code subagent (shipped with the plugin)
@@ -27,6 +28,10 @@ TARGETS = {
     "opencode": (ROOT / "adapters" / "opencode" / "agents", ".md"),
 }
 CLAUDE_MODEL = {"strong": "opus", "fast": "sonnet"}
+# Optional Claude-only role fields, copied into the Claude agent under the agent field name.
+# No shipped role sets them (opt-in experiments; see skills/mao/references/experiments.md).
+CLAUDE_FIELDS = {"claude-tools": "tools", "claude-disallowed-tools": "disallowedTools",
+                 "claude-max-turns": "maxTurns"}
 TIERS = set(CLAUDE_MODEL)
 NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
@@ -117,6 +122,8 @@ def load_roles():
         roles.append({
             "skill": skill, "role": role, "id": f"{skill}-{role}", "source": rel,
             "description": description, "tier": tier, "body": body,
+            "claude_extra": {CLAUDE_FIELDS[k]: str(v).strip() for k, v in meta.items()
+                             if k in CLAUDE_FIELDS and str(v).strip()},
         })
     return roles, errors, invalid
 
@@ -176,7 +183,8 @@ def render(role):
         f"description: {yaml_str(role['description'])}\n"
         f"model: {CLAUDE_MODEL[role['tier']]}\n"
         "effort: high\n"
-        "---\n"
+        + "".join(f"{key}: {value}\n" for key, value in role["claude_extra"].items())
+        + "---\n"
         f"{role['body']}"
     )
     codex = (
