@@ -3,6 +3,55 @@
 Versions are the `sbskills` plugin versions that shipped a change to this
 skill. Measured effects come from [README.md](README.md#benchmarks).
 
+## 0.2.8 — 2026-11-10
+
+Measured on a 0.2.7 trial of 14 PRs (README, "What the 0.2.7 trial
+showed"): a PR took 5–6 hours, of which gates took 2.5–4 hours; 3.3 gates
+per PR, only 4 of 14 green at the first gate. About 8 failed gates were
+missed repo-wide pins, about 10 were flakes or races outside the diff, 2
+were order dependences in new tests.
+
+- **Pins script** (`references/gates.md` §5): the project keeps an
+  executable script of every repo-wide count, list and snapshot test plus
+  lint and type check of changed files, about five minutes. The
+  implementer hands over with it green, every gate run starts with it, and
+  a pin a gate catches is added to it. New `project.md` fields "Pins",
+  "Full suites", "Check resume", "Perf steps"; setup proposes the script.
+- **Full suites before `GATE`**: the implementer runs the whole unit and
+  DB suites once, with the normal shuffle, besides the targeted runs.
+- **Flake rule** (`gates.md` §6): a timeout or environment failure in a
+  test the diff does not touch gets one rerun on the same tree, from the
+  failed step when the check can resume, else one full rerun. A failure
+  that repeats is a bug and is diagnosed, never retried. Flakes go into the
+  batch file's flake backlog.
+- **Pipeline** (`gates.md` §7, `batch.md` B2): the next PR's design and
+  implementation may run beside a gate, but nothing heavy runs beside a
+  gate step with perf assertions.
+- **Static review beside the gate**: round 1 starts with the gate and runs
+  no test while it runs; its mutants run after the gate or go into the
+  review as probes. Without CI the worker's gate run is the independent
+  run; the reviewer no longer repeats the full check.
+- **Fix round in a second worktree** while the gate keeps running;
+  fast-forward after, then stop the superseded gate.
+- **All findings in one pass**, each `blocking` or `should`; only blocking
+  findings cause a round.
+- **Incremental mutants** after a fix round: only the fixed places, new
+  code and the reviewer's probes; the rest carry over.
+- **Parts from the spec**: the designer cuts the order of work into
+  implementer parts of about 60–70 calls, each with a hand-off note; every
+  part is a new agent; the orchestrator commits what a part left as
+  `wip:` so that mutants can restore with git.
+- **Final gate once, at the train head**; a PR stacked on an unmerged PR
+  is rebuilt on the new base (`rebase --onto` or cherry-pick), never by
+  merging the base into it. A gate run may start with the step that has
+  never passed on this kind of change.
+- Designer: names the pins a PR moves; an interleaving table for
+  concurrency and offline code. New general lessons on pins, shuffle,
+  repeated failures, perf headroom and date-dependent fixtures.
+
+Measured: not yet as a release; the rules were applied by hand in the
+trial above.
+
 ## 0.2.7 — 2026-11-02
 
 Measured on the 0.2.6 run (README, "What 0.2.6 showed"): implementation

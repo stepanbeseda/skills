@@ -88,9 +88,11 @@ Confirm every file you create in your report with the output of
   `<SKILL>/references/gates.md` §1 exactly. Check that the worktree is
   clean and `HEAD^{tree}` equals the tree in your prompt (otherwise
   `GATE MISMATCH`, run nothing); clean what "Agent environment" says;
-  run exactly the given command into `<PR>-check-<n>.log`; one rerun only
-  when every failure is on the known-flake list; append `## Gate` to the
-  implementer's report. Fix nothing and diagnose nothing. Final message:
+  run the pins script first (red → `CHECK FAILED`, no full check); run
+  exactly the given command into `<PR>-check-<n>.log`, the step the prompt
+  names first; one rerun only when every failure is a flake (`gates.md`
+  §6), from the failed step when the check can resume; append `## Gate` to
+  the implementer's report. Fix nothing and diagnose nothing. Final message:
   `Verdict: CHECK OK | CHECK FAILED | GATE MISMATCH`, the summary line,
   the log path.
 - **Dev server for preview:** start the dev/preview server from the

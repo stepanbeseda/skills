@@ -143,9 +143,11 @@ track. On the light track keep the body to about 150 lines.
    is what gets walked in the browser preview.
 6. **Tests** — which existing files to extend, which new tests are created;
    a regression test for every acceptance criterion verifiable offline. A
-   deleted test has a "new home" line. New project without a check: the
-   first PR introduces one and records it in `project.md` — that is an
-   acceptance criterion.
+   deleted test has a "new home" line. Name the repo-wide pins this PR
+   moves (an exports list, a migration count, a registry size; the
+   project's pins script lists them) with their new values. New project
+   without a check: the first PR introduces one and records it in
+   `project.md` — that is an acceptance criterion.
 7. **Documentation** — which files to update in the same PR and which
    wording of the old behaviour disappears (grep patterns).
 8. **Rollback** — how the change is reverted and what must not be damaged
@@ -158,7 +160,12 @@ track. On the light track keep the body to about 150 lines.
     line is if the PR had to be split. Each step names the spec sections
     and appendix files it needs (by heading and file name), so an
     implementer that continues an attempt in a new context reads only
-    those.
+    those. Cut the steps into **implementer parts** of about 60–70 tool
+    calls each (a part that writes a module and its tests is usually two
+    or three steps). End each part with a **hand-off note**: what is green
+    and committed, the files and commands the next part needs, and the
+    decisions it must not reopen. In a measured trial implementers needed
+    3–4 parts per PR, each a new agent that knew only these files.
 
 Before writing, read the headers of the affected modules — they often say
 "why" and which earlier attempt failed.
@@ -175,6 +182,12 @@ prove the claim) and name it at the claim: the spec check reads a recorded
 run instead of repeating it, so a slow run (a cluster, a browser, a full
 suite) is paid once. Send long output to the `.out` file, not to your
 context.
+
+**Concurrency.** For code with concurrency, offline sync, retries or
+background jobs, add an interleaving table in an appendix: states, events,
+allowed transitions and, for each pair of events that can overlap, what
+happens in both orders. Tests and mutants come from its rows; the
+reviewer checks the code against it.
 
 **Size and anchors.** Keep the body of the spec around 500 lines and never
 above 600. Exact texts, long test tables, SQL and the mutant list go into

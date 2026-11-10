@@ -46,18 +46,22 @@ After the review `git -C <ROOT> status --porcelain` must be as you found it.
    context where a hunk needs it); read tests as carefully as code. Open
    surrounding code by range (`grep -n`, `sed -n a,bp`); a whole file only
    when it is new and short. Verify the check line: its `tree=` equals
-   `git rev-parse HEAD^{tree}` of the commit you review. When the project's
-   CI runs the same check on the PR (`project.md`, "CI checks"), CI is the
-   independent run: do not run the full check; run the tests of the
-   changed areas. Otherwise run the check from `project.md` yourself with
-   your own private tag — the implementer's claims do not count without
-   verification; a cached test stage without a count is not your run. The
-   prompt says which case applies. Run every new command or recipe.
-   Mutation: the implementer already ran the spec's mutants; you run
-   **3–5** of your own choice, in the scratch copy, aimed at where you
-   suspect a test is weak (a guard and each operand of its condition, a
-   boundary, an error path, a loop over protected items), not the whole
-   list (2–3 on the light track). Judge every item of the implementer's
+   `git rev-parse HEAD^{tree}` of the commit you review. Do not run the
+   full check: CI (`project.md`, "CI checks") or the gate run of a worker
+   is the independent run (`<SKILL>/references/gates.md` §2).
+   **While a gate runs** (the prompt says so), the review is static: read,
+   reason and write findings, but run no test, build or suite; under load
+   your runs and the gate's timing tests fail each other. When the gate
+   has ended (its `## Gate` section is in the impl report), run the tests
+   of the changed areas and every new command or recipe.
+   Mutation: the implementer already ran the spec's mutants; you choose
+   **3–5** of your own, aimed at where you suspect a test is weak (a guard
+   and each operand of its condition, a boundary, an error path, a loop
+   over protected items), not the whole list (2–3 on the light track). Run
+   them in the scratch copy once the gate has ended; if it is still running
+   when you are done, list each under "Probes" (patch and killing test) and
+   do not wait: the fix round or a worker runs them, and a survivor is a
+   blocking finding. Judge every item of the implementer's
    "Decisions outside the spec" and the spec check's "Not checked" list
    explicitly: accepted, or a finding.
 3. Go through **every** acceptance criterion in the spec and mark it: met /
@@ -68,6 +72,9 @@ After the review `git -C <ROOT> status --porcelain` must be as you found it.
    blocking finding.
 4. **Round 1:** go through the whole `checklist.md` and write `ok` /
    `finding` / `n/a` for every item — an empty line is a blocking finding.
+   Report **every** finding in this pass, each `blocking` or `should`: a
+   finding left for the next round costs a fix, a delta review and a gate.
+   In a 14-PR trial that did so, 12 PRs needed at most one fix round.
    **Round 2+:** verify that every earlier finding is fixed and that a test
    catches it through the real path; look for regressions of the fixes;
    mark findings outside the fixed places as **new** and write why round 1
@@ -108,7 +115,8 @@ The first line is always the verdict.
 Verdict: APPROVED | CHANGES
 Blocking findings: (file:line — what — why — what it should be; [spec error] where it applies)
 New vs. repeated: (round 2+: which findings are new, why round 1 did not find them)
-Other findings: (do not block the merge)
+Should findings: (do not block the merge; fixed in a round when one runs, else backlog)
+Probes: (mutants not run yet because a gate was running: patch — killing test)
 Checklist: (round 1: item → ok / finding / n/a)
 Acceptance criteria: table criterion → status
 Not verified: (what requires browser preview, the test host or a human)
@@ -147,5 +155,5 @@ Not verified: (what requires browser preview, the test host or a human)
 
 
 `CHANGES` only for blocking findings. Cosmetics do not block; put them
-under "Other". A reproducible data loss with a one-line fix is blocking,
+under "Should". A reproducible data loss with a one-line fix is blocking,
 even if the spec did not prescribe it.

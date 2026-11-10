@@ -30,8 +30,22 @@ own rules (`AGENTS.md`, `CLAUDE.md`, `README.md`) here — only link to them.
   machine-readable line, e.g. `CHECK OK tree=<hash> <suite>=<passed> …`.
 - Check duration: <about N minutes>. Over about five minutes the
   implementer hands it to a gate run (`<SKILL>/references/gates.md`).
-- Known flakes (a gate run reruns once when every failure is one of these):
-  <test names or patterns, each with the reason> | none
+- Pins (`<SKILL>/references/gates.md` §5): `<e.g. scripts/pins.sh>`, about
+  five minutes at most; runs every repo-wide count, list and snapshot test
+  (<e.g. exports lists, migration count, registry sizes, README blocks a
+  test parses, grants, alert rule count>) plus lint and type check of the
+  changed files. The implementer hands over with it green; every gate runs
+  it first; a pin a gate catches is added to it. | none
+- Full suites (the implementer runs them once before `GATE`, with the
+  normal test order and shuffle): `<unit command>`, `<DB command>` | none
+- Check resume: `<e.g. scripts/check.sh --from <step>>`; the resumed
+  summary line says `resumed-from=<step>` | none (a flake rerun repeats
+  the whole check)
+- Perf steps (steps with timing assertions; nothing else runs suites,
+  builds or mutants on this machine while they run): <steps> | none
+- Known flakes (a gate run reruns once when every failure is one of these,
+  or a timeout or environment error in a test the diff does not touch;
+  `gates.md` §6): <test names or patterns, each with the reason> | none
 - Extra gates and their input paths: <e.g. `scripts/deploy-check.sh` —
   inputs `deploy/`, `scripts/`, `.github/`; a smoke only one host can run —
   inputs …> | none. A gate carries over to a rebased tree when

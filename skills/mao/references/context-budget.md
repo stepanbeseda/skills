@@ -82,13 +82,23 @@ that down. `SKILL.md` lists them in short; this file has the detail.
   that applies a mutant, runs its killing test, records red/green to one
   log and restores the file. One tool call per mutant was a whole
   implementer part in measured runs.
+- **Mutants after a fix round run only where the fix changed something**:
+  the mutants of the fixed places, new ones for new code, and the
+  reviewer's probes. A row's result changes only when its code or its test
+  changes; the rest carry over with the commit of the earlier run. In a
+  measured trial fix rounds ran 4–13 mutants instead of the full list.
+- **Parts follow the spec.** The designer cuts the order of work into
+  implementer parts of about 60–70 calls, each ending with a hand-off note
+  (`roles/designer.md`, §10). A part reads its note and the sections it
+  names, not the whole spec.
 
 ## Scheduling
 
 - **Resume only small agents.** A resumed agent keeps its whole context.
   Resume only while it is about 150k tokens or less, or when the next round
   really needs what it learned; otherwise start a new agent of the same
-  role with file paths. A one-line fix in an agent that carries 400k tokens
+  role with file paths. Implementer parts are always new agents: in a
+  measured trial one part ended at 278k context after about 95 calls. A one-line fix in an agent that carries 400k tokens
   costs more than a fresh agent that reads 40k.
 - **Design one PR ahead.** Start a designer when the PR's dependencies are
   merged or approved, not earlier. A spec written two or three merges ahead

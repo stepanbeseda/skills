@@ -40,6 +40,8 @@ information goes through the batch file.
      PR-specific values (image tags, e2e project names), and the run-wide
      rules every prompt would otherwise repeat (lock slots, flakes seen in
      this batch, part limits, experiments switched on);
+   - a **flake backlog**: every flake a gate reran (`gates.md` §6) with
+     the test id, the error and how often it failed;
    - owner decisions from step 3;
    - a "Cross-PR notes" list you append to as designs come in (e.g. "PR 13 adds `matching.suggest()`; PR 09 feeds its data into it
      after its rebase").
@@ -64,13 +66,21 @@ reviewer of round 1 is told the section is deliberately not implemented.
   (SKILL.md, "Context budget"). When a slot frees up, start the next
   PR **in merge order** — the PR that merges first must never wait for a
   build lock behind one that merges last.
+- **Pipeline.** The next PR's design and implementation may run while the
+  previous PR's gate runs, but no agent runs suites, builds or mutants
+  while that gate is in a perf step (`gates.md` §7). When several heavy
+  jobs wait, the gate of the train head goes first.
 - PR bodies and other light work are not capped beyond the machine lock.
 - Every agent follows the machine lock and PR-private names from
   `project.md`; the check script (when the project has one) applies them.
 
 ## B3. Merge train
 
-Repeat for the next PR in merge order, once it is APPROVED:
+Repeat for the next PR in merge order, once it is APPROVED. The final
+gate runs once, at the head of the train (`gates.md` §4): a PR behind the
+head is rebased and gated after the head merges, not after every merge.
+When the next PR in the list is still in a fix round, the first APPROVED
+PR whose dependencies are met may go first (see 5).
 
 1. `git fetch`. Rebase onto `origin/<base>`:
    - base unchanged since the branch was cut → nothing to do;

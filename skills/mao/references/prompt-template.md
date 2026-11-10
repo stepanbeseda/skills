@@ -69,7 +69,8 @@ ROOT=/abs/wt/pr31  branch=mao/pr31-planner-ui  tree=9f3c…  (must equal HEAD^{t
 SKILL=/abs/skills/mao   Project: /abs/wt/pr31/.mao/project.md
 Write: append "## Gate" to /abs/repo/.mao/log/PR-31-impl-1.md; log /abs/repo/.mao/log/PR-31-check-1.log
 Task:
-- Run exactly: scripts/check.sh --tag pr31. Follow references/gates.md §1 (one rerun only for known flakes).
+- Pins first: scripts/pins.sh. Then run exactly: scripts/check.sh --tag pr31, the cluster smoke step first (it has not passed on this kind of change yet).
+- Follow references/gates.md §1 (one rerun only for a flake, §6; resume with --from <step>).
 Agent environment (from project.md, verbatim):
 <the block>
 ```

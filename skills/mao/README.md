@@ -35,6 +35,7 @@ It runs only when invoked explicitly. Stop-and-ask rules in the project's
 
 | Version | Date | Theme |
 |---|---|---|
+| 0.2.8 | 2026-11-10 | pins script, full suites before the gate, flake rule with resume, pipeline beside gates (not perf steps), static review and fix worktree beside the gate, findings in one pass, incremental mutants, parts cut by the designer |
 | 0.2.7 | 2026-11-02 | gate runner, fast tier for fix rounds and rebases, designer split at the inventory, CI as the independent check, gate carry-over, prompt template, opt-in experiments, cost helper |
 | 0.2.6 | 2026-10-30 | light track, `Risk: high` → strong implementer, designer parts, spec-check budget, mutants from one script, plan edits straight to base |
 | 0.2.5 | 2026-10-30 | README with benchmarks, CHANGELOG (docs only) |
@@ -112,6 +113,46 @@ Reading the table:
   first, spec sections only).
 - The orchestrator's share grew to about 9 % as the roles got cheaper;
   0.2.4's ten-line hand-backs target it.
+
+### What the 0.2.7 trial showed (what 0.2.8 changes)
+
+Measured on 14 PRs of the same plan, run on 0.2.7 with the 0.2.8 rules
+applied by hand, CI off and the local gate as the merge gate. Strong-tier
+designer and implementer, fast-tier workers.
+
+| Phase | Wall clock per PR | Note |
+|---|---|---|
+| Whole PR, design to merge | 5–6 h | |
+| Implementation | 60–70 min | 3–4 parts, at the ~90-call / ~150k-context limit |
+| Review and fixes | about 45 min | in parallel with the first gate |
+| Gates | 2.5–4 h | 3.3 gates per PR; one gate about 85 min plus 10–20 min of cluster smoke |
+
+Only 4 of 14 PRs were green at the first gate. Why gates failed:
+
+- **Missed repo-wide pins** (about 8): exports lists, migration counts, a
+  palette count, the order of README blocks a test parses, monitoring
+  grants, alert rule counts, lint on test files. Each was a one-line fix
+  and a full gate → an executable pins script that the implementer and
+  every gate run first (`references/gates.md` §5).
+- **Flakes and races outside the diff** (about 10), each a full rerun; two
+  that recurred were real bugs (a client race from an earlier change, a
+  perf assertion with too little headroom) → one rerun from the failed
+  step on the same tree, and a repeat is diagnosed (§6).
+- **Order dependences in new tests** (2), hidden by targeted runs under an
+  in-file shuffle → the implementer runs the whole unit and DB suites once.
+- **Load from a parallel agent** beside a perf step (1) → nothing heavy
+  beside a perf step (§7).
+
+What worked and became rules: static review in parallel with the gate, a
+fix round in a second worktree, incremental mutants in fix rounds, all
+findings in one pass (12 of 14 PRs needed at most one fix round), parts
+cut to the call limit, fresh agents for every part.
+
+Expected effect: about 1.8 full gates per PR instead of 3.3, plus about
+0.7 partial reruns from the failed step. Pins caught in five minutes save
+about 55 minutes per PR, resumed flake reruns about 45; the implementer's
+suite run adds about 20. Net about 1.5 hours less per PR, from 5–6 h to
+about 4–4.5 h, before any change to the check itself.
 
 ### What 0.2.6 showed (what 0.2.7 changes)
 

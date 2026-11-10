@@ -62,7 +62,15 @@ batch, backend services and web apps); project-specific lessons live in
   on rebase is mechanical.
 - After the base branch was squash-merged, `git rebase origin/<base>`
   replays the base's own commits and conflicts with itself; use
-  `git rebase --onto origin/<base> <old-base-tip>`.
+  `git rebase --onto origin/<base> <old-base-tip>`, or cherry-pick the PR's
+  own commits onto the new base. Never merge the base into a branch that
+  was stacked on an unmerged PR.
+- After a rebase onto a base that added dependencies or workspace
+  packages, install or link them in the worktree before the gate; a stale
+  dependency folder fails the gate's first step.
+- Do not overlap anything heavy with a gate step that asserts timing. The
+  next PR's implementation may run beside a gate, but its suites under a
+  perf step made a passing assertion fail and cost a gate.
 - A rebase is tree-identical when `git diff <checked-commit> HEAD` is empty;
   then the earlier check holds. Any other change after approval (conflict
   resolution, a "small" fix, a removed guard) gets a delta review — one
@@ -312,6 +320,24 @@ batch, backend services and web apps); project-specific lessons live in
   from cache shows no count; after a rebase or for a reviewer's
   "independent" run, force the stage or run the tests explicitly, and
   quote counts plus the tree hash.
+- **Repo-wide pins break far from the diff.** A new export, migration,
+  palette entry, grant or alert rule moves a count or list test in another
+  package. Targeted runs never see it. Run the project's pins script
+  before every hand-over, and add every pin a gate catches to it.
+- **Shuffled test order hides dependences.** A new test that relies on an
+  earlier test in the same file passes in a targeted run and fails under
+  the suite's shuffle. Run the whole suite once, shuffled as usual.
+- **A failure that repeats is not a flake.** A test that failed at the
+  same spot in two gates was a real race from an earlier change (4 of 20
+  runs on the base branch). Reproduce it N times on the branch and on the
+  base before blaming load or the network.
+- **A perf assertion with little headroom is a flake generator.** A limit
+  with under about 25 % headroom in a suite that runs files in parallel
+  failed on loaded runs again and again; fix the slow path, do not relax
+  or retry it.
+- **A date-dependent fixture is a time bomb.** Seed data placed relative to
+  "today" broke on some weekdays only. Test such fixtures over a range of
+  dates (e.g. every day of two years).
 - **A negative grep must first find its positive.** A phrase that wraps
   over two lines makes "grep finds nothing" vacuous; show the hit on the
   old tree before trusting the empty result on the new one.

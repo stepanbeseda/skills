@@ -49,7 +49,12 @@ The worker goes through the project and writes a draft
   tags, compose project names, ports, databases, CPU count) — the draft of
   the "Parallel runs" section; when the check is several commands, propose
   one check script that runs them with private names and ends with a
-  machine-readable summary line (the first PR may introduce it).
+  machine-readable summary line (the first PR may introduce it);
+- the repo-wide **pins**: tests that count or list something across the
+  repo (exports, migrations, registries, snapshots, README blocks a test
+  parses, grants, alert rules). Propose a pins script that runs only those
+  plus lint and type check of changed files, in about five minutes
+  (`gates.md` §5), and say whether the check can resume from a step.
 
 Empty project: check "none yet — the first PR introduces it", new plan.
 
@@ -68,6 +73,8 @@ answers verbatim into `project-draft.md`.
   to what makes sense in the project. With the webapp profile, append the
   sections of `profiles/webapp-checklist.md` that apply.
 - `<ROOT>/.mao/lessons.md` from `lessons-template.md`.
+- The pins script, when the project has pins and the user agreed (it is
+  part of the setup commit; otherwise the first PR adds it).
 - No plan → from `plan-template.md` at the path given in `project.md`.
 - `.gitignore`: add `.mao/log/` (and your tool's agent-memory folder, e.g.
   `.claude/agent-memory/`) if

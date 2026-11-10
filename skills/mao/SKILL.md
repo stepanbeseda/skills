@@ -129,9 +129,10 @@ detail and the measurements are in `references/context-budget.md`:
 - Long output goes to a log file named `<PR>-…`; agents read the summary
   and the failures. Code is read by range, never a file twice.
 - Implementer parts: ~70 tool calls, **hard stop ~90**; designers write
-  the inventory by ~50 calls and stop at ~90. The prompt's first line
-  states the budget; progress files stay current; you note each agent's
-  tool-call count in the journal.
+  the inventory by ~50 calls and stop at ~90. The spec's order of work is
+  cut into parts of that size, each with a hand-off note. Every part is a
+  new agent; nothing is resumed above ~150k context. The prompt's first
+  line states the budget; you note each agent's tool-call count.
 - No big agent waits for the full check: the implementer commits and
   reports `GATE`, a small worker runs it (`references/gates.md`).
 - Specs keep appendices in separate files; each step of the order of work
@@ -341,11 +342,13 @@ parallel PRs never share a file.
    spec-check path, the branch, the attempt number, and paths to earlier
    `<PR>-impl-*.md`, `<PR>-preview-*.md` and `<PR>-review-*.md`. Report into
    `<PR>-impl-N.md`. `Verdict: GATE` with `Check: pending tree=<hash>`: the
-   work is committed; start a gate run (worker, `references/gates.md`),
-   which appends the check's summary line to the report. `CHECK FAILED` →
-   a new implementer part with the log path. `Verdict: CONTINUE` with
-   `<PR>-impl-N-progress.md` means the attempt is not finished: start a
-   new implementer for its next part (a designer's `CONTINUE` with
+   work is committed, the pins script and the whole unit and DB suites are
+   green; start a gate run (worker, `references/gates.md`), which appends
+   the check's summary line. `CHECK FAILED` → a new implementer part.
+   `Verdict: CONTINUE` with `<PR>-impl-N-progress.md` means the attempt is
+   not finished: commit what the part left uncommitted as
+   `wip: <PR> part K` (mutants restore files with git), then start a new
+   implementer for the next part (a designer's `CONTINUE` with
    `<PR>-design-progress.md` works the same way). The attempt failed when
    the report states a blocker or the check stays red. A new project
    without a check: the first PR must introduce one and record it in
@@ -360,23 +363,25 @@ parallel PRs never share a file.
    server afterwards. A preview may run while the reviewer works only
    because reviewers never change the worktree (mutants run in a copy,
    `roles/reviewer.md`); otherwise walk it after the review.
-6. **Review (reviewer, round N).** Report into `<PR>-review-N.md`, first line
-   `Verdict: APPROVED | CHANGES`. Round 1 ticks off the whole `checklist.md`
-   and runs the full check itself only when CI does not run it
-   (`references/gates.md` §2). Round 2+ verifies fixes and looks for
+6. **Review (reviewer, round N).** Starts with the gate and stays static
+   while it runs; a fix round runs in a second worktree meanwhile
+   (`references/gates.md` §7). Report into `<PR>-review-N.md`, first line
+   `Verdict: APPROVED | CHANGES`. Round 1 ticks off the whole `checklist.md`;
+   the full check is the gate's (`references/gates.md` §2). Round 2+ verifies fixes and looks for
    regressions; new findings outside the fixed places are marked **new**.
    `CHANGES` → implementer, next round. `APPROVED` → delivery (with a
    preview, repeat 5b once after the last fix). Every review ends with a
    `## PR body` section (3–6 lines) that the worker copies.
-   **Non-blocking findings after `APPROVED`.** Open a follow-up round only
-   for (a) a security or data-protection issue, or (b) product behaviour
-   that no test catches (a surviving non-equivalent mutant of product code).
-   Put every chosen item into **one** follow-up. Everything else — wording,
-   copy, toast texts, docs, comments, log polish, a test for a branch the
-   code already gets right by construction — goes into the batch file as a
-   note for the next PR that touches those files, and into the Delivered
-   block, even when the round looks cheap: each costs a gate run, a delta
-   review and 30–40 minutes before the merge.
+   **All findings in one pass.** The reviewer reports every finding it has,
+   each `blocking` or `should`. Only blocking findings cause a round. A
+   `should` finding is fixed in the round anyway when one runs; after
+   `APPROVED` it opens a follow-up only for (a) a security or
+   data-protection issue, or (b) product behaviour no test catches (a
+   surviving non-equivalent mutant of product code), all in **one**
+   follow-up. Everything else — wording, docs, a test for a branch the code
+   gets right by construction — goes into the batch file as a note for the
+   next PR on those files and into the Delivered block: each late round
+   costs a gate, a delta review and 30–40 minutes.
    **6b. Delta review.** Any change to the branch **after** `APPROVED` other
    than a tree-identical rebase — conflict resolution, a fix of a
    non-blocking finding, an addendum applied after a rebase, a renumbered

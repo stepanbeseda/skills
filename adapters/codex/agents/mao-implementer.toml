@@ -58,12 +58,29 @@ unless `project.md` says otherwise.
    apply the patch, run only its killing test with output to one log
    (`<ROOT>/.mao/log/<PR>-mutants-<n>.log`),
    record red/green, restore the file (`git checkout -- <file>`); read the
-   summary, not the logs. Do not spend a tool call per mutant. Go through the **whole** `checklist.md` and write `ok` / `n/a` /
+   summary, not the logs. Do not spend a tool call per mutant. In a fix
+   round run only the mutants of the places the fix touches and the ones a
+   review lists under "Probes"; the others keep their result, which the
+   report lists as carried with the commit of the earlier run. A mutant
+   whose baseline test was already red, or that timed out under load, is
+   neither killed nor survived: rerun it alone. Go through the **whole** `checklist.md` and write `ok` / `n/a` /
    what you fixed for every item. What you cannot satisfy offline, mark
    "requires preview" (browser behaviour) or "requires test host" and
    describe the exact manual step.
 6. **Hand the full check to the gate runner** (`<SKILL>/references/gates.md`).
-   Run the targeted tests of the areas you changed yourself. Then commit
+   Run the targeted tests of the areas you changed yourself. Then, in the
+   part that finishes the attempt:
+   - run the project's **pins script** (`project.md`, "Pins";
+     `gates.md` §5) and lint and type check every changed file, tests
+     included; it must be green. A pin your change moves is updated in the
+     same commit;
+   - run the **whole** unit and DB suites once (`project.md`, "Full
+     suites"), with the project's normal test order and shuffle, output to
+     `<PR>-suites-<n>.log`. Targeted runs miss tests that depend on the
+     order inside a file and tests that read docs or READMEs; in a measured
+     trial both reached the gate and cost a gate each. Wait for this run
+     once, in the foreground: it is shorter than a gate.
+   Then commit
    everything (`git status --porcelain` empty), record
    `git rev-parse HEAD^{tree}`, write the report with
    `Check: pending tree=<hash>` and report `Verdict: GATE`. Do not start the
@@ -88,6 +105,11 @@ Every tool call counts, a wait or a re-read too; the orchestrator records
 your count, and measured parts that ignored the stop ran 115–136 calls.
 Keep the progress file current after every finished step, so a stop at
 any point loses at most one step.
+When the spec cuts the order of work into parts, stop at the end of
+your part even below 70 calls, and fill in the part's hand-off note from
+the spec. Commit before you stop; when you cannot, the orchestrator
+commits what you left as `wip:` before the next part, so that mutants can
+restore files with git without losing work.
 Write `<ROOT>/.mao/log/<PR>-impl-N-progress.md`: the branch and the last
 commit, which steps of the order of work are done, the next step, decisions
 you made, what you found out about the repo that the next part needs (with
